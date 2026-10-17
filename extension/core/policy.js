@@ -25,7 +25,7 @@ export function evaluate(url, now, state) {
   if(matchesAny(url,s.allowlist))return {...clear,reason:'allowed'};
   const groups=s.groups.filter(g=>g.enabled&&matchesAny(url,g.patterns));
   const used=state.usage[budgetDay(now,s.resetMinute)]??{};
-  const remainingMs=groups.length?Math.max(0,Math.min(...groups.map(g=>g.budgetMs-(used[g.id]??0)))):null;
+  const remainingMs=groups.length?Math.max(0,Math.min(...groups.map(g=>g.budgetMs-(Object.hasOwn(used,g.id)?used[g.id]:0)))):null;
   const blocked=isScheduled(now,s.schedule)&&remainingMs===0;
   return {blocked,reason:blocked?'quota':!isScheduled(now,s.schedule)?'outside-schedule':'available',groupIds:groups.map(g=>g.id),remainingMs};
 }

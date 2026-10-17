@@ -21,7 +21,16 @@ export function matchesPattern(value, pattern) {
   const host = u.hostname.toLowerCase().replace(/\.$/, '');
   if (host !== p.host && !host.endsWith(`.${p.host}`)) return false;
   if (p.path === null) return true;
-  const source = p.path.split('*').map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
-  return new RegExp(`^${source}$`).test(u.pathname);
+  // Greedy wildcard matching avoids regular-expression backtracking on
+  // user-supplied patterns. Only '*' is special; all other bytes are literal.
+  const pathname=u.pathname,glob=p.path;let i=0,j=0,star=-1,retry=0;
+  while(i<pathname.length){
+    if(j<glob.length&&glob[j]===pathname[i]){i++;j++;}
+    else if(glob[j]==='*'){star=j++;retry=i;}
+    else if(star!==-1){j=star+1;i=++retry;}
+    else return false;
+  }
+  while(glob[j]==='*')j++;
+  return j===glob.length;
 }
 export const matchesAny = (url, patterns) => patterns.some(p => matchesPattern(url, p));

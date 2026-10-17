@@ -83,3 +83,15 @@ test('DST reset boundaries preserve local dates',()=>{
  assert.equal(budgetDay(time('2026-03-08T04:00:00'),240),'2026-03-08');
  assert.equal(budgetDay(time('2026-11-01T03:59:00'),240),'2026-10-31');}finally{process.env.TZ=prev;}
 });
+test('adversarial wildcard patterns do not cause exponential matching',async()=>{
+ const {execFileSync}=await import('node:child_process');
+ const source="import {matchesPattern} from './extension/core/patterns.js'; if(matchesPattern('https://example.com/'+ 'a'.repeat(80),'example.com/'+ '*a'.repeat(20)+'b')) process.exit(1);";
+ assert.doesNotThrow(()=>execFileSync(process.execPath,['--input-type=module','-e',source],{timeout:1000}));
+});
+test('special object keys cannot corrupt quota and hostname statistics',()=>{
+ const s=state();s.settings.groups[0].id='constructor';
+ const from=time('2026-10-17T12:00:00');let r=accountInterval(s,{url:'https://example.com',from,to:from+5000,eligible:true});
+ assert.equal(r.usage['2026-10-17'].constructor,5000);
+ r=accountInterval(r,{url:'https://__proto__',from,to:from+5000,eligible:true});
+ assert.equal(Object.getOwnPropertyDescriptor(r.stats['2026-10-17'],'__proto__').value,5000);
+});
