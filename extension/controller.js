@@ -1,5 +1,5 @@
 import {initialState,accountInterval,pruneHistory} from './core/accounting.js';
-import {validateSettings,CHALLENGE} from './core/settings.js';
+import {validateSettings,challengeForLanguage} from './core/settings.js';
 import {activeNuclear,evaluate} from './core/policy.js';
 export function createController({storage,clock=Date.now}) {
   let state,queue=Promise.resolve();
@@ -7,10 +7,11 @@ export function createController({storage,clock=Date.now}) {
   async function load(){
     const current=state??await storage.get()??initialState();
     if(current.version!==1)throw Error('Unsupported saved state version.');
-    if(!state)validateSettings(current.settings);
+    const migrated=!Object.hasOwn(current.settings,'language');
+    if(!state)current.settings=validateSettings(current.settings);
     const clean=pruneHistory(current,clock());
     const changed=['stats','usage'].some(k=>Object.keys(clean[k]).length!==Object.keys(current[k]).length);
-    if(changed)await storage.set(clean);
+    if(changed||migrated)await storage.set(clean);
     state=clean;return state;
   }
   async function commit(next){await storage.set(next);state=next;return structuredClone(state);}
@@ -20,7 +21,7 @@ export function createController({storage,clock=Date.now}) {
     const current=await load(),now=clock();
     if(cmd?.type==='getState')return structuredClone(current);
     if(!['saveSettings','startNuclear','cancelScheduledNuclear','clearStats'].includes(cmd?.type))throw Error('Unknown command.');
-    if(current.settings.challengeEnabled&&cmd.challenge!==CHALLENGE)throw Error('Complete the typing challenge first.');
+    if(current.settings.challengeEnabled&&cmd.challenge!==challengeForLanguage(current.settings.language))throw Error('Complete the typing challenge first.');
     if(activeNuclear(current,now)&&cmd.type!=='clearStats')throw Error('A nuclear session is active. Settings are locked until it ends.');
     const next=structuredClone(current);
     if(cmd.type==='saveSettings') {

@@ -14,7 +14,7 @@ package. No vendor code, graphics, or text are included.
 
 ## Install
 
-1. Download `open-stay-focused-0.1.0.zip` from
+1. Download `open-stay-focused-0.1.1.zip` from
    [Releases](https://github.com/xingwudao/open-stay-focused/releases).
 2. Extract it into a folder you will keep on your computer.
 3. Open `chrome://extensions`, enable Developer mode, then choose
@@ -25,6 +25,16 @@ Requires Chrome 120 or newer. This first release is distributed through GitHub,
 not the Chrome Web Store. To install from source, load the `extension/` folder.
 When updating, replace the files in the same folder and click Reload in Chrome.
 Keep that folder and extension ID stable to retain local settings and usage.
+
+## Language / 语言
+
+Open Settings and choose **English** or **简体中文** using **Language / 语言**
+at the top, then save. Popup, settings and blocked pages use the saved language
+when opened. Existing settings default to English.
+
+打开设置页，在顶部的 **Language / 语言** 选择 **简体中文** 或 **English**，
+然后点击 **保存设置 / Save settings**。新打开的弹窗、设置页和拦截页会使用已保存的语言。
+切换语言不会清空使用记录或重置额度；专注锁定和输入挑战仍然生效。
 
 ## What it does
 

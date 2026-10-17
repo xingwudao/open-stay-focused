@@ -174,3 +174,39 @@ test('distraction settings update an already-open site without reload',async()=>
  s.distractions.youtubeShorts=false;await save(s);
  await expect(site.locator('ytd-reel-shelf-renderer').last()).toBeVisible({timeout:12000});
 });
+test('Chinese and English selection preserves drafts and persists across all pages',async()=>{
+ await page.getByLabel('Group name').fill('Settings');await page.getByLabel('Website patterns').fill('example.com');
+ await page.getByRole('button',{name:'Add group',exact:true}).click();
+ await page.getByLabel('Allowed websites',{exact:true}).fill('example.com/work/*');
+ await page.getByLabel('Mon',{exact:true}).uncheck();
+ await page.getByLabel('Language / 语言',{exact:true}).selectOption('zh-CN');
+ await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
+ await expect(page.getByRole('heading',{name:/你的注意力/})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Settings',exact:true})).toBeVisible();
+ await expect(page.locator('#allowlist')).toHaveValue('example.com/work/*');
+ await expect(page.getByLabel('周一',{exact:true})).not.toBeChecked();
+ await page.getByRole('button',{name:'保存设置',exact:true}).click();
+ await expect(page.getByRole('status')).toHaveText('设置已保存。');
+ await page.reload();await expect(page.locator('#language')).toHaveValue('zh-CN');
+ const popup=await context.newPage();await popup.goto(base+'/ui/popup.html');
+ await expect(popup.getByRole('button',{name:'设置',exact:true})).toBeVisible();
+ await expect(popup.locator('#reason')).toContainText('HTTP');
+ const blocked=await context.newPage();await blocked.goto(base+'/ui/blocked.html?reason=quota');
+ await expect(blocked.getByRole('heading',{name:'为重要的事，留出空间。'})).toBeVisible();
+ await page.locator('#language').selectOption('en');await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ await expect(page.getByRole('status')).toHaveText('Settings saved.');await popup.reload();await expect(popup.getByRole('button',{name:'Settings',exact:true})).toBeVisible();
+});
+
+test('Chinese challenge, validation and settings export use the saved language',async()=>{
+ const s=await settings();s.language='zh-CN';s.challengeEnabled=true;await save(s);await page.reload();
+ await expect(page.locator('#language')).toHaveValue('zh-CN');
+ await page.locator('#import-file').setInputFiles({name:'bad.json',mimeType:'application/json',buffer:Buffer.from('{bad')});
+ await expect(page.getByRole('alert')).toHaveText('JSON 文件无效。设置未被修改。');
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'导出设置'}).click();
+ const stream=await (await download).createReadStream();const chunks=[];for await(const chunk of stream)chunks.push(chunk);
+ expect(JSON.parse(Buffer.concat(chunks).toString()).language).toBe('zh-CN');
+ await page.locator('#language').selectOption('en');await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ const phrase=await page.locator('#challenge-phrase').innerText();expect(phrase).toContain('我的注意力');
+ await page.locator('#challenge-input').fill(phrase);await page.getByRole('button',{name:'Confirm change'}).click();
+ await expect(page.getByRole('status')).toHaveText('Settings saved.');expect((await settings()).language).toBe('en');
+});

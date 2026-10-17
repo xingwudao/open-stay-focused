@@ -50,3 +50,24 @@ recorded below when completed; they are not implied by the local checks above.
 
 Remote CI and publication are pending at this commit. The release's GitHub
 Actions results and release page provide the final remote status.
+
+## Version 0.1.1: Chinese / English language selection
+
+Date: 2026-10-17.
+
+- Added an English/Simplified Chinese selector with saved local preference.
+- Legacy settings migrate to English without changing quotas or focus deadlines.
+- Options, popup, blocked page, prompts, durations and challenges are localized.
+  Draft preview preserves edits; challenges validate against the saved language.
+- `npm test`: 25/25 passed, including migration and reproducible packaging.
+- `npm run test:browser`: 16/16 passed in isolated Chromium.
+- Extracted ZIP language integration tests: 2/2 passed.
+- `npm run build`, `unzip -t`, and `git diff --check`: passed.
+- Chinese desktop layout visually inspected; no horizontal overflow.
+- Independent read-only review found no blocking correctness, security or
+  significant translation issues; its 24 core/controller/language tests passed.
+- ZIP: 66,389 bytes, 21 files. SHA-256:
+  `e03efd2e1950beaa6e17cd22d2260122a7fdd2a57c4c36b792086dcd65e7ca83`.
+
+Remote CI and publication for 0.1.1 are pending at this commit; consult the
+GitHub Actions result and release page for their final status.

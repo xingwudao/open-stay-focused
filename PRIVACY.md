@@ -1,6 +1,6 @@
 # Privacy policy
 
-Effective: 2026-10-17. Applies to Open Stay Focused 0.1.0.
+Effective: 2026-10-17. Applies to Open Stay Focused 0.1.x.
 
 Open Stay Focused has no backend, account, advertising SDK or analytics service.
 The extension does not send settings, usage or page content to its developers.
@@ -9,7 +9,7 @@ Websites you visit retain their own ordinary network behavior.
 
 ## Data on your device
 
-Chrome local extension storage contains settings, per-group daily usage,
+Chrome local extension storage contains settings (including your language choice), per-group daily usage,
 per-hostname daily statistics, and any scheduled/active focus session.
 Statistics retain 30 local dates. Clearing statistics leaves the active budget
 ledger and focus session intact. Removing the extension removes its local data.

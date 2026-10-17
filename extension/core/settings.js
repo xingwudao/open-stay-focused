@@ -1,8 +1,9 @@
 import {parsePattern} from './patterns.js';
 export const CHALLENGE = 'My attention belongs to me. I choose this change deliberately, and I accept the time it will cost.';
+export const challengeForLanguage = language => language === 'zh-CN' ? '我的注意力属于自己。我认真决定这次修改，并愿意承担它所花费的时间。' : CHALLENGE;
 export const DISTRACTIONS = ['youtubeShorts','youtubeRecommendations','youtubeComments','instagramReels','facebookReels','xTrends','tiktokRecommendations'];
 export function defaultSettings() {
-  return {schemaVersion:1,groups:[],allowlist:[],schedule:{days:[0,1,2,3,4,5,6],intervals:[[0,1440]]},resetMinute:0,challengeEnabled:false,distractions:Object.fromEntries(DISTRACTIONS.map(k=>[k,false]))};
+  return {schemaVersion:1,language:'en',groups:[],allowlist:[],schedule:{days:[0,1,2,3,4,5,6],intervals:[[0,1440]]},resetMinute:0,challengeEnabled:false,distractions:Object.fromEntries(DISTRACTIONS.map(k=>[k,false]))};
 }
 const fail = (message) => { throw new Error(message); };
 function keys(o, allowed) {
@@ -15,7 +16,9 @@ function patterns(list) {
 }
 export function validateSettings(input) {
   if (new TextEncoder().encode(JSON.stringify(input)).length>262144) fail('Settings must be at most 256 KiB.');
-  keys(input,['schemaVersion','groups','allowlist','schedule','resetMinute','challengeEnabled','distractions']);
+  if(input && typeof input === 'object' && !Array.isArray(input) && !Object.hasOwn(input,'language')) input={...input,language:'en'};
+  keys(input,['language','schemaVersion','groups','allowlist','schedule','resetMinute','challengeEnabled','distractions']);
+  if (!['en','zh-CN'].includes(input.language)) fail('Unsupported language.');
   if (input.schemaVersion!==1) fail('Unsupported settings version.');
   if (!Array.isArray(input.groups) || input.groups.length>100) fail('Use at most 100 groups.');
   const ids=new Set();
