@@ -1,7 +1,7 @@
 # Open Stay Focused: first release design
 
-Status: proposed architecture for user review. Product scope approved;
-implementation has not started.
+Status: architecture approved by the user on 2026-10-17.
+Implementation has not started.
 
 ## Objective and scope
 
