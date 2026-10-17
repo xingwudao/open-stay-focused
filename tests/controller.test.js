@@ -6,6 +6,7 @@ import {CHALLENGE} from '../extension/core/settings.js';
 const trusted={trustedUI:true};
 function setup() {
  let saved=initialState(),now=new Date('2026-10-17T12:00:00').getTime(),fails=false;
+ saved.settings.challengeEnabled=false;
  saved.settings.groups=[{id:'g',name:'Social',enabled:true,patterns:['example.com'],budgetMs:10000}];
  const storage={get:async()=>structuredClone(saved),set:async s=>{if(fails)throw Error('Disk full');saved=structuredClone(s);}};
  return {controller:createController({storage,clock:()=>now}),storage,advance:n=>now+=n,now:()=>now,fail:v=>fails=v};
@@ -58,7 +59,9 @@ test('scheduled nuclear captures original patterns; malicious imported fields re
  const f=setup(),c=f.controller;
  await c.handle({type:'startNuclear',mode:'blocked',minutes:2,startAt:f.now()+60000},trusted);
  let s=await c.snapshot();
- await c.handle({type:'saveSettings',settings:{...s.settings,groups:[]},revision:s.revision},trusted);
+ const operation={type:'saveSettings',settings:{...s.settings,groups:[]},revision:s.revision};
+ const prepared=await c.handle({type:'prepareChange',operation},trusted);await c.handle({type:'confirmChange',ticket:prepared.ticket},trusted);
+ await c.handle({...operation,ticket:prepared.ticket},trusted);
  s=await c.snapshot();assert.equal(s.nuclear.policySnapshot.groups[0].patterns[0],'example.com');
  await assert.rejects(c.handle({type:'saveSettings',settings:{...s.settings,nuclear:null},revision:s.revision},trusted),/fields/);
  await c.handle({type:'cancelScheduledNuclear'},trusted);assert.equal((await c.snapshot()).nuclear,null);

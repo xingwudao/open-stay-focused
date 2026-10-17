@@ -28,10 +28,10 @@ are loaded. Original icons are generated geometric artwork.
 
 ## Deliberate limits
 
-The first release uses post-navigation redirect enforcement, not declarative
+The extension uses post-navigation redirect enforcement, not declarative
 network rules. This keeps rule semantics in one engine but allows a brief flash
-of content. Foreground heartbeats normally bound enforcement delay to five
-seconds. Alarms reconcile suspended/background conditions about every 30 seconds;
+of content. In v0.1 foreground heartbeats normally bounded enforcement delay to five
+seconds; v0.2 adds one-second sampling as described below. Alarms reconcile suspended/background conditions about every 30 seconds;
 Chrome may delay them. No claim of exact real-time execution is made.
 
 The plan's `tick` adapter is simplified to a verified `eligible` boolean; the
@@ -59,3 +59,49 @@ revision, independent of statistics refreshes. Only a settings write increments
 that revision; clearing statistics or starting a session does not replace an
 unsaved draft. Wildcard matching handles '*' before literal equality so URLs
 containing a literal asterisk retain the expected glob semantics.
+
+## Version 0.2: live accounting, statistics and commitment guards
+
+The Chrome adapter now samples eligible tabs each second while tracking is active,
+plus navigation/focus/idle events. Foreground content heartbeats arrive once a second;
+alarms remain the suspension fallback. Optional audible tabs can count concurrently.
+A locked system pauses all tracking. `core/tracking.js` derives eligibility from Chrome
+state, never from an untrusted payload. The page-timer response contains only the
+current page's display flags, duration and remaining allowance; it exposes neither
+other sites nor the settings object. Floating UI lives in its own Shadow DOM.
+
+`accountIntervalMany` unions qualifying hostnames and group IDs for each settled
+interval. Each host and matching group receives at most one copy of its timestamp
+delta, even if several qualifying tabs match. Statistics always count eligible time;
+quota additionally requires enabled restrictions and an active schedule. Daily and
+hourly bins use local calendar boundaries. `sessionCounts`, `hourly` and `activeHosts`
+augment legacy daily totals; no full browsing-path ledger is retained. A lost runtime
+checkpoint ends continuity rather than inventing time or merging sessions across restart.
+
+Popup, settings statistics and floating timer refresh once per second from settled
+authoritative state. Refreshes never replace a dirty settings draft or its revision.
+This implementation checkpoints aggregate ledgers during samples; it does not copy
+StayFocusd's broader IndexedDB page-view and analytics schema. Performance and callback
+throttling are limits, not guarantees of hard real-time execution.
+
+`core/protections.js` classifies writes and guards exhausted commitments, active days,
+hidden pause controls and nuclear sessions. Pure tightening can use limited editing;
+other settings writes require the currently saved challenge. Strict typing is a UI
+friction mechanism, not authentication against someone controlling their browser.
+Hard commitment rules are checked in the controller for every entry, including imports.
+Sequential confirmation tickets bind to normalized operation, current revision and a
+five-minute lifetime; successful application consumes them. A retry after a storage
+failure retains its ticket. Persistence remains atomic at the controller state boundary.
+
+Schema 1 settings migrate to schema 2 with challenges enabled and escape controls
+hidden, preserving quotas and histories. Changes to active intervals/reset time are
+queued until the next local calendar date at the same clock time. The controller
+settles old intervals before policy mutation, and splits at a pending apply boundary;
+its existing 15-second freshness cap prevents accounting offline gaps. New edits
+replace the corresponding queue, unchanged-effective saves do not cancel it, and
+imports cannot supply queue state. Pending application increments the revision.
+
+Settings and CSV exports are separate: settings JSON contains effective configuration,
+not history, live timers or pending queues; CSV contains only selected hostname totals
+and session counts. Filters classify current hostname roots because path history is
+intentionally absent. CSV fields are escaped against spreadsheet formula injection.

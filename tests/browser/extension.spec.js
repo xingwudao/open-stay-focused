@@ -2,18 +2,19 @@ import {test,expect,chromium} from '@playwright/test';
 import path from 'node:path';
 import {existsSync} from 'node:fs';
 const extension=path.resolve(process.env.EXTENSION_PATH??'extension');
-let context,worker,base,page;
+let context,worker,base,page,initialSettings;
 test.beforeEach(async()=>{
  expect(existsSync(path.join(extension,'manifest.json')), 'loadable manifest exists').toBe(true);
  context=await chromium.launchPersistentContext('',{channel:'chromium',headless:true,args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
  worker=context.serviceWorkers()[0]??await context.waitForEvent('serviceworker');
  base=`chrome-extension://${new URL(worker.url()).host}`;
  page=await context.newPage();await page.goto(base+'/ui/options.html');
+ const initial=await send({type:'getState'});initialSettings=initial.settings;if(initial.settings.challengeEnabled){await save({...initial.settings,challengeEnabled:false});await page.reload();}
 });
 test.afterEach(async()=>{await context?.close();});
 async function send(command){return page.evaluate(async c=>{const r=await chrome.runtime.sendMessage(c);if(!r.ok)throw Error(r.error);return r.data;},command);}
 async function settings(){return (await send({type:'getState'})).settings;}
-async function save(s){const state=await send({type:'getState'});await send({type:'saveSettings',settings:s,revision:state.revision});}
+async function save(s){const state=await send({type:'getState'}),operation={type:'saveSettings',settings:s,revision:state.revision};const prepared=await send({type:'prepareChange',operation});for(let i=0;i<prepared.steps;i++)await send({type:'confirmChange',ticket:prepared.ticket});const challenge=await page.evaluate(async settings=>{const {challengeForLanguage}=await import('./../core/settings.js');return challengeForLanguage(settings.language,settings.challengeText);},state.settings);await send({...operation,ticket:prepared.ticket,challenge});}
 const group=(patterns,budgetMs=0)=>({id:'test',name:'Test group',enabled:true,patterns,budgetMs});
 test('loads extension and UI creates a group, persists and exports settings',async()=>{
  await expect(page.getByRole('heading',{name:'Your attention, on your terms.'})).toBeVisible();
@@ -54,7 +55,7 @@ test('nuclear session locks mutations and survives worker termination',async()=>
 });
 test('challenge and invalid imports show errors; clear stats preserves quota',async()=>{
  const s=await settings();s.challengeEnabled=true;await save(s);await page.reload();
- await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ await page.locator('#show-timer').uncheck();await page.getByRole('button',{name:'Save settings',exact:true}).click();
  await expect(page.getByRole('dialog')).toBeVisible();
  await page.getByLabel('Type the sentence exactly').fill('wrong');
  await page.getByRole('button',{name:'Confirm change'}).click();
@@ -111,7 +112,7 @@ test('browser restart retains nuclear deadline and discards transient browsing c
  try{
   ctx=await launch();let w=ctx.serviceWorkers()[0]??await ctx.waitForEvent('serviceworker');const root=`chrome-extension://${new URL(w.url()).host}`;
   let p=await ctx.newPage();await p.goto(root+'/ui/options.html');
-  const first=await p.evaluate(()=>chrome.runtime.sendMessage({type:'startNuclear',mode:'all',minutes:1}));expect(first.ok).toBe(true);
+  const first=await p.evaluate(async()=>{const {challengeForLanguage}=await import('../core/settings.js');const {data}=await chrome.runtime.sendMessage({type:'getState'});return chrome.runtime.sendMessage({type:'startNuclear',mode:'all',minutes:1,challenge:challengeForLanguage(data.settings.language,data.settings.challengeText)});});expect(first.ok).toBe(true);
   await ctx.close();ctx=await launch();p=await ctx.newPage();await p.goto(root+'/ui/options.html');
   const restored=await p.evaluate(()=>chrome.runtime.sendMessage({type:'getState'}));expect(restored.data.nuclear.endAt).toBe(first.data.nuclear.endAt);
   const site=await ctx.newPage();await site.goto('http://127.0.0.1:4173/').catch(()=>{});await expect(site).toHaveURL(/ui\/blocked.html/);
@@ -142,7 +143,7 @@ test('popup quick-add saves the active website through the protected settings co
  const popup=await context.newPage();
  // Headless Chromium doesn't expose its native toolbar popup as a page.
  // Supply the real site-tab result at the browser API boundary only.
- await popup.addInitScript(tab=>{chrome.tabs.query=async()=>[tab];},tab);
+ await popup.addInitScript(tab=>{const send=chrome.runtime.sendMessage.bind(chrome.runtime);chrome.runtime.sendMessage=async command=>{const response=await send(command);if(command.type==='getLiveState'&&response.ok)response.data.tab=tab;return response;};},tab);
  await popup.goto(base+'/ui/popup.html');await expect(popup.locator('#site')).toHaveText('127.0.0.1');
  await popup.getByRole('button',{name:'Add website'}).click();await expect(popup.getByRole('status')).toContainText('added');
  expect((await settings()).groups[0].patterns).toEqual(['127.0.0.1']);
@@ -209,4 +210,46 @@ test('Chinese challenge, validation and settings export use the saved language',
  const phrase=await page.locator('#challenge-phrase').innerText();expect(phrase).toContain('我的注意力');
  await page.locator('#challenge-input').fill(phrase);await page.getByRole('button',{name:'Confirm change'}).click();
  await expect(page.getByRole('status')).toHaveText('Settings saved.');expect((await settings()).language).toBe('en');
+});
+
+test('live popup refresh preserves selection and options preserve unsaved drafts',async()=>{
+ const s=await settings();s.groups=[group(['127.0.0.1'],60000),{...group(['example.com'],60000),id:'other',name:'Other'}];await save(s);await page.reload();
+ await page.locator('#allowlist').fill('unsaved.example');
+ const popup=await context.newPage();await popup.goto(base+'/ui/popup.html');
+ await popup.locator('#target-group').selectOption('other');
+ await expect(popup.locator('#host-usage')).toBeVisible();
+ await popup.waitForTimeout(2200);
+ await expect(popup.locator('#target-group')).toHaveValue('other');
+ await expect(page.locator('#allowlist')).toHaveValue('unsaved.example');
+ await expect(page.locator('#stats-chart')).toHaveAttribute('aria-label',/Usage/);
+});
+
+test('strict challenge resets edits and accepts composed Chinese input',async()=>{
+ await page.locator('#language').selectOption('zh-CN');
+ await page.locator('#test-challenge').click();
+ const input=page.locator('#challenge-input');
+ await input.fill('wrong');await expect(input).toHaveValue('');
+ const phrase=await page.locator('#challenge-phrase').textContent();
+ expect(phrase).toContain('我的注意力');await input.fill(phrase.slice(0,8));await input.press('Backspace');await expect(input).toHaveValue('');
+ await input.fill(phrase.slice(0,8));await input.dispatchEvent('paste');await expect(input).toHaveValue('');
+ await input.evaluate((el,text)=>{el.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}));el.value=text;el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertCompositionText',isComposing:true}));el.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true,data:text}));},phrase);
+ await page.locator('#challenge-confirm').click();await expect(page.locator('#challenge-dialog')).not.toBeVisible();
+});
+
+
+test('delayed schedule changes remain visible and CSV exports local statistics',async()=>{
+ await page.locator('#intervals').fill('09:00-17:00');await page.locator('#save').click();
+ await expect(page.locator('#pending-banner')).toContainText('Pending: 09:00–17:00');
+ expect((await settings()).schedule.intervals).toEqual([[0,1440]]);
+ await page.reload();await expect(page.locator('#pending-banner')).toContainText('09:00–17:00');
+ const download=page.waitForEvent('download');await page.locator('#export-csv').click();expect((await download).suggestedFilename()).toBe('open-stay-focused-usage.csv');
+});
+
+
+test('default protections are enabled and allowance increases require every confirmation',async()=>{
+ expect(initialSettings.schemaVersion).toBe(2);expect(initialSettings.challengeEnabled).toBe(true);expect(initialSettings.hidePause).toBe(true);expect(initialSettings.hideQuickAllow).toBe(true);
+ const s=await settings();s.groups=[group(['example.com'],60000)];await save(s);await page.reload();
+ await expect(page.locator('#pause')).toBeHidden();await page.getByLabel('Minutes per day',{exact:true}).fill('2');await page.locator('#save').click();
+ for(let i=1;i<=8;i++){await expect(page.getByRole('heading',{name:`Confirm change ${i} of 8`})).toBeVisible();expect((await settings()).groups[0].budgetMs).toBe(60000);await page.getByRole('button',{name:'Continue',exact:true}).click();}
+ await expect(page.getByRole('status')).toContainText('saved');expect((await settings()).groups[0].budgetMs).toBe(120000);
 });

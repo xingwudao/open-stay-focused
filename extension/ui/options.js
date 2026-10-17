@@ -1,18 +1,19 @@
 import {setLanguage,t,getLanguage} from './i18n.js';
+import {summarizeUsage,csvUsage} from '../core/statistics.js';
 import {DISTRACTIONS,validateSettings} from '../core/settings.js';
 import {budgetDay,localDay,activeNuclear} from '../core/policy.js';
-import {$,send,duration,notice,clearNotice,challengeIfNeeded,element} from './shared.js';
-let state,draft,draftRevision;
+import {$,send,duration,notice,clearNotice,challengeIfNeeded,mutate,element} from './shared.js';
+let state,draft,draftRevision,refreshing=false,acting=false;
 const lines=value=>value.split('\n').map(x=>x.trim()).filter(Boolean);
 const timeText=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
 function parseTime(text,allow24=false){if(!/^\d{2}:\d{2}$/.test(text))throw Error('Use times in HH:MM format.');const [h,m]=text.split(':').map(Number);if(m>59||h>23&&!(allow24&&h===24&&m===0))throw Error('Invalid time.');return h*60+m;}
-async function act(fn){clearNotice();try{await fn();}catch(e){notice(e.message,true);}}
+async function act(fn){if(acting)return;acting=true;clearNotice();try{await fn();}catch(e){notice(e.message,true);}finally{acting=false;}}
 function renderGroups(){
  const root=$('groups');root.replaceChildren();
  if(!draft.groups.length)root.append(element('p',t('No groups yet. Start with one website you want more distance from.'),'empty'));
  for(const g of draft.groups){
   const card=element('div',undefined,'card group-card'),heading=element('div',undefined,'section-top');
-  heading.append(element('h3',g.name),element('span',t('{time} left',{time:duration(Math.max(0,g.budgetMs-(Object.hasOwn(state.usage[budgetDay(Date.now(),draft.resetMinute)]??{},g.id)?state.usage[budgetDay(Date.now(),draft.resetMinute)][g.id]:0)))}),'pill'));card.append(heading);
+  const pill=element('span','','pill');pill.dataset.group=g.id;heading.append(element('h3',g.name),pill);card.append(heading);
   const label=element('label',t('Enabled'),'check'),check=element('input');check.type='checkbox';check.checked=g.enabled;check.addEventListener('change',()=>g.enabled=check.checked);label.prepend(check);card.append(label);
   for(const [text,key,type,value] of [['Name','name','text',g.name],['Minutes per day','budgetMs','number',g.budgetMs/60000]]){
    const l=element('label',t(text)),input=element('input');input.type=type;input.value=value;
@@ -22,7 +23,9 @@ function renderGroups(){
   const l=element('label',t('Patterns')),ta=element('textarea');ta.rows=3;ta.value=g.patterns.join('\n');ta.addEventListener('input',()=>g.patterns=lines(ta.value));l.append(ta);card.append(l);
   const remove=element('button',t('Remove group'),'quiet');remove.addEventListener('click',()=>{draft.groups=draft.groups.filter(x=>x.id!==g.id);renderGroups();});card.append(remove);root.append(card);
  }
+ refreshPills();
 }
+function refreshPills(){for(const pill of document.querySelectorAll('[data-group]')){const g=state.settings.groups.find(g=>g.id===pill.dataset.group)??draft.groups.find(g=>g.id===pill.dataset.group);if(g)pill.textContent=t('{time} left',{time:duration(Math.max(0,g.budgetMs-(state.usage[budgetDay(Date.now(),state.settings.resetMinute)]?.[g.id]??0)))});}}
 const toggleNames=['YouTube · Shorts','YouTube · Recommendations','YouTube · Comments','Instagram · Reels links','Facebook · Reels links','X · Trending topics','TikTok · Recommendations'];
 function render(){
  setLanguage(state.settings.language);$('language').value=state.settings.language;
@@ -30,24 +33,32 @@ function render(){
  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((name,day)=>{const l=element('label',t(name),'day');const c=element('input');c.type='checkbox';c.value=day;c.checked=draft.schedule.days.includes(day);l.prepend(c);$('days').append(l);});
  $('intervals').value=draft.schedule.intervals.map(([a,b])=>`${timeText(a)}-${timeText(b)}`).join('\n');$('reset').value=timeText(draft.resetMinute);$('challenge-enabled').checked=draft.challengeEnabled;
  $('toggles').replaceChildren();DISTRACTIONS.forEach((key,i)=>{const l=element('label',t(toggleNames[i]),'check'),c=element('input');c.type='checkbox';c.dataset.key=key;c.checked=draft.distractions[key];l.prepend(c);$('toggles').append(l);});
+ for(const [id,key] of [['show-timer','showTimer'],['track-audio','trackAudio'],['hide-pause','hidePause'],['hide-quick-allow','hideQuickAllow']])$(id).checked=draft[key];$('challenge-text').value=draft.challengeText??'';
  renderSession();renderStats();
 }
 function renderSession(){
  const n=state.nuclear,active=activeNuclear(state,Date.now()),pending=n&&Date.now()<n.startAt;
  $('session-banner').hidden=!active&&!pending;
  if(active||pending)$('session-banner').textContent=active?t('Focus session active · {time} remaining. Settings are locked.',{time:duration(n.endAt-Date.now())}):t('Focus session scheduled for {time}.',{time:new Date(n.startAt).toLocaleString(getLanguage())});
+ $('pause').hidden=state.settings.hidePause;$('pause').textContent=t(state.settings.enabled?'Pause restrictions':'Resume restrictions');
+ const pendingText=[];if(state.pending?.intervals)pendingText.push(t('Time windows: {effective}. Pending: {value}, effective {time}.',{effective:state.settings.schedule.intervals.map(([a,b])=>`${timeText(a)}–${timeText(b)}`).join(', '),value:state.pending.intervals.value.map(([a,b])=>`${timeText(a)}–${timeText(b)}`).join(', '),time:new Date(state.pending.intervals.applyAt).toLocaleString(getLanguage())}));if(state.pending?.resetMinute)pendingText.push(t('Daily reset: {effective}. Pending: {value}, effective {time}.',{effective:timeText(state.settings.resetMinute),value:timeText(state.pending.resetMinute.value),time:new Date(state.pending.resetMinute.applyAt).toLocaleString(getLanguage())}));$('pending-banner').hidden=!pendingText.length;$('pending-banner').textContent=pendingText.join(' ');
  $('save').disabled=!!active;$('start-focus').disabled=!!active;$('cancel-focus').disabled=!pending;
 }
+function summary(){return summarizeUsage(state,{range:$('stats-range').value,filter:$('stats-filter').value,search:$('stats-search').value,now:Date.now()});}
 function renderStats(){
- const totals=Object.create(null);for(const [day,values] of Object.entries(state.stats))if($('stats-range').value==='all'||day===localDay(Date.now()))for(const [host,ms] of Object.entries(values))totals[host]=(totals[host]??0)+ms;
- const root=$('stats');root.replaceChildren();const rows=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
- if(!rows.length)root.append(element('p',t('Nothing recorded yet. A little breathing room.'),'empty'));
- for(const [host,ms] of rows){const row=element('div',undefined,'stat-row');row.append(element('span',host),element('strong',duration(ms)));root.append(row);}
+ const data=summary(),root=$('stats');root.replaceChildren();
+ $('stats-total').textContent=t('{time} total · {count} sessions',{time:duration(data.totalMs),count:data.totalSessions});
+ if(!data.rows.length)root.append(element('p',t('Nothing recorded yet. A little breathing room.'),'empty'));
+ for(const {host,ms,sessions} of data.rows){const row=element('div',undefined,'stat-row');row.append(element('span',host),element('strong',duration(ms)),element('span',t('{count} sessions',{count:sessions})));root.append(row);}
+ const chart=$('stats-chart');chart.replaceChildren();const max=Math.max(1,...data.series.map(d=>d.ms));
+ for(const point of data.series){const bar=element('div',undefined,'usage-bar');bar.style.height=`${Math.max(2,point.ms/max*100)}%`;bar.title=`${point.label}: ${duration(point.ms)}`;bar.setAttribute('aria-label',bar.title);chart.append(bar);}
+ chart.setAttribute('aria-label',t('Usage over time')+': '+data.series.map(p=>`${p.label}: ${duration(p.ms)}`).join(', '));
 }
 function collect(){
  draft.language=$('language').value;draft.allowlist=lines($('allowlist').value);draft.schedule.days=[...$('days').querySelectorAll('input:checked')].map(e=>Number(e.value));
  draft.schedule.intervals=lines($('intervals').value).map(line=>{const parts=line.split('-');if(parts.length!==2)throw Error('Use time windows like 09:00-17:00.');return [parseTime(parts[0].trim()),parseTime(parts[1].trim(),true)];});
- draft.resetMinute=parseTime($('reset').value);draft.challengeEnabled=$('challenge-enabled').checked;
+ draft.resetMinute=parseTime($('reset').value);draft.challengeEnabled=$('challenge-enabled').checked;draft.challengeText=$('challenge-text').value;
+ for(const [id,key] of [['show-timer','showTimer'],['track-audio','trackAudio'],['hide-pause','hidePause'],['hide-quick-allow','hideQuickAllow']])draft[key]=$(id).checked;
  for(const c of $('toggles').querySelectorAll('input'))draft.distractions[c.dataset.key]=c.checked;
  return validateSettings(draft);
 }
@@ -58,14 +69,14 @@ $('add-group').addEventListener('click',()=>act(async()=>{
  const group={id:crypto.randomUUID(),name:$('group-name').value,enabled:true,patterns:lines($('group-patterns').value),budgetMs:Number($('group-minutes').value)*60000};
  const checked=validateSettings({...draft,groups:[...draft.groups,group]});draft.groups=checked.groups;renderGroups();$('group-name').value='';$('group-patterns').value='';notice('Group added to your draft. Save settings to apply it.');
 }));
-$('save').addEventListener('click',()=>act(async()=>{const settings=collect(),challenge=await challengeIfNeeded(state);state=await send({type:'saveSettings',settings,revision:draftRevision,challenge});render();notice('Settings saved.');}));
+$('save').addEventListener('click',()=>act(async()=>{const settings=collect();state=await mutate(state,{type:'saveSettings',settings,revision:draftRevision});render();notice('Settings saved.');}));
 $('start-focus').addEventListener('click',()=>act(async()=>{
  if(!$('focus-confirm').checked)throw Error('Confirm that the session cannot be canceled once active.');
- const challenge=await challengeIfNeeded(state),startAt=$('focus-start').value?new Date($('focus-start').value).getTime():undefined;
- state=await send({type:'startNuclear',mode:$('focus-mode').value,minutes:Number($('focus-minutes').value),startAt,challenge});renderSession();notice('Focus session committed using your saved rules.');
+ const startAt=$('focus-start').value?new Date($('focus-start').value).getTime():undefined;
+ state=await mutate(state,{type:'startNuclear',mode:$('focus-mode').value,minutes:Number($('focus-minutes').value),startAt});renderSession();notice('Focus session committed using your saved rules.');
 }));
-$('cancel-focus').addEventListener('click',()=>act(async()=>{state=await send({type:'cancelScheduledNuclear',challenge:await challengeIfNeeded(state)});renderSession();notice('Scheduled session canceled.');}));
-$('clear-stats').addEventListener('click',()=>act(async()=>{state=await send({type:'clearStats',challenge:await challengeIfNeeded(state)});renderStats();notice('Statistics cleared. Existing budgets and focus sessions are unchanged.');}));
+$('cancel-focus').addEventListener('click',()=>act(async()=>{state=await mutate(state,{type:'cancelScheduledNuclear'});renderSession();notice('Scheduled session canceled.');}));
+$('clear-stats').addEventListener('click',()=>act(async()=>{state=await mutate(state,{type:'clearStats'});renderStats();notice('Statistics cleared. Existing budgets and focus sessions are unchanged.');}));
 $('refresh-stats').addEventListener('click',()=>act(async()=>{state=await send({type:'getState'});renderStats();renderSession();notice('Usage refreshed.');}));
 $('stats-range').addEventListener('change',renderStats);
 $('export').addEventListener('click',()=>act(async()=>{
@@ -75,8 +86,13 @@ $('export').addEventListener('click',()=>act(async()=>{
 $('import-file').addEventListener('change',()=>act(async()=>{
  const file=$('import-file').files[0];if(!file)return;
  try {if(file.size>262144)throw Error('Settings must be at most 256 KiB.');let input;try{input=JSON.parse(await file.text());}catch{throw Error('Invalid JSON file. Your settings were not changed.');}
- const settings=validateSettings(input),challenge=await challengeIfNeeded(state);state=await send({type:'saveSettings',settings,revision:draftRevision,challenge});render();notice('Settings imported.');
+ const settings=validateSettings(input);state=await mutate(state,{type:'saveSettings',settings,revision:draftRevision});render();notice('Settings imported.');
  } finally {$('import-file').value='';}
 }));
-setInterval(()=>{if(state)renderSession();},1000);
+$('stats-filter').addEventListener('change',renderStats);$('stats-search').addEventListener('input',renderStats);
+$('export-csv').addEventListener('click',()=>act(async()=>{const url=URL.createObjectURL(new Blob([csvUsage(summary())],{type:'text/csv;charset=utf-8'})),a=element('a');a.href=url;a.download='open-stay-focused-usage.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}));
+$('test-challenge').addEventListener('click',()=>act(async()=>{const preview=validateSettings({...state.settings,language:$('language').value,challengeText:$('challenge-text').value});await challengeIfNeeded({settings:preview},true);notice('Challenge completed.');}));
+$('pause').addEventListener('click',()=>act(async()=>{state=await mutate(state,{type:'saveSettings',settings:{...state.settings,enabled:!state.settings.enabled},revision:state.revision});renderSession();notice('Settings saved.');}));
+async function refresh(){if(!state||refreshing||acting)return;refreshing=true;try{const live=await send({type:'getLiveState'});state=live.state;renderSession();refreshPills();renderStats();}catch(e){notice(e.message,true);}finally{refreshing=false;}}
+const liveTimer=setInterval(refresh,1000);addEventListener('pagehide',()=>clearInterval(liveTimer),{once:true});
 act(async()=>{state=await send({type:'getState'});render();});

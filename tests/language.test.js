@@ -6,16 +6,16 @@ import {initialState} from '../extension/core/accounting.js';
 import {setLanguage,t} from '../extension/ui/i18n.js';
 test('language is validated and legacy settings default to English',()=>{
  const s=defaultSettings();assert.equal(s.language,'en');
- const old=structuredClone(s);delete old.language;
+ const old=structuredClone(s);old.schemaVersion=1;old.challengeEnabled=false;for(const k of ['enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language'])delete old[k];
  assert.equal(validateSettings(old).language,'en');
  assert.equal(validateSettings({...s,language:'zh-CN'}).language,'zh-CN');
  for(const language of ['fr',null,undefined,'zh'])assert.throws(()=>validateSettings({...s,language}));
 });
 test('stored legacy state migrates without changing quotas or nuclear deadline',async()=>{
- let stored=initialState();delete stored.settings.language;stored.usage={'2026-10-17':{g:2345}};
+ let stored=initialState();stored.settings.schemaVersion=1;stored.settings.challengeEnabled=false;for(const k of ['enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language'])delete stored.settings[k];stored.usage={'2026-10-17':{g:2345}};
  stored.nuclear={startAt:0,endAt:9999999999999,mode:'all',policySnapshot:structuredClone(stored.settings)};
  const c=createController({clock:()=>new Date('2026-10-17T12:00:00').getTime(),storage:{get:async()=>structuredClone(stored),set:async s=>stored=structuredClone(s)}});
- const state=await c.snapshot();assert.equal(state.settings.language,'en');assert.equal(stored.settings.language,'en');
+ const state=await c.snapshot();assert.equal(state.settings.language,'en');assert.equal(stored.settings.language,'en');assert.equal(stored.settings.challengeEnabled,true);assert.equal(stored.settings.schemaVersion,2);
  assert.equal(state.usage['2026-10-17'].g,2345);assert.equal(state.nuclear.endAt,9999999999999);
 });
 test('Chinese challenge uses saved language, including language-switching writes',async()=>{

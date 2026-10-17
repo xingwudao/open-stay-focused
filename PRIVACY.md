@@ -1,6 +1,6 @@
 # Privacy policy
 
-Effective: 2026-10-17. Applies to Open Stay Focused 0.1.x.
+Effective: 2026-10-17. Applies to Open Stay Focused 0.2.x.
 
 Open Stay Focused has no backend, account, advertising SDK or analytics service.
 The extension does not send settings, usage or page content to its developers.
@@ -10,14 +10,17 @@ Websites you visit retain their own ordinary network behavior.
 ## Data on your device
 
 Chrome local extension storage contains settings (including your language choice), per-group daily usage,
-per-hostname daily statistics, and any scheduled/active focus session.
+per-hostname daily/hourly statistics and session-start counts, pending settings
+changes, and any scheduled/active focus session.
 Statistics retain 30 local dates. Clearing statistics leaves the active budget
 ledger and focus session intact. Removing the extension removes its local data.
-Exported settings JSON contains your configured website patterns and rules;
+Exported settings JSON contains your configured website patterns, custom challenge
+text, language choice and rules. CSV exports contain selected hostname totals and
+session counts;
 share it only if you intend to share those choices.
 
 While running, the extension reads current tab URLs to match rules and count
-foreground time. The last checkpoint URL exists only in Chrome session storage,
+foreground time. The last checkpoint URLs (including eligible audible tabs) exist only in Chrome session storage,
 which is not retained across browser restarts. Persistent statistics contain
 hostnames rather than visited paths, queries, page titles, content or chats.
 User-entered settings can contain paths because path rules are configurable.

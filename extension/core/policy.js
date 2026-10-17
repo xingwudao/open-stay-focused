@@ -22,6 +22,7 @@ export function evaluate(url, now, state) {
     if(block)return {...clear,blocked:true,reason:'nuclear',remainingMs:nuclear.endAt-now};
   }
   const s=state.settings;
+  if(s.enabled===false)return {...clear,reason:'paused'};
   if(matchesAny(url,s.allowlist))return {...clear,reason:'allowed'};
   const groups=s.groups.filter(g=>g.enabled&&matchesAny(url,g.patterns));
   const used=state.usage[budgetDay(now,s.resetMinute)]??{};

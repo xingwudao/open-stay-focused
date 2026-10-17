@@ -71,3 +71,33 @@ Date: 2026-10-17.
 
 Remote CI and publication for 0.1.1 are pending at this commit; consult the
 GitHub Actions result and release page for their final status.
+
+## Version 0.2.0: deeper timing/statistics/protection reconstruction
+
+Date: 2026-10-17. User explicitly chose immediate protections for all upgrades.
+
+- Reused REA's retained original-package evidence and supplemented focused static
+  callpath inspection. The public deep research report includes hashes, offsets,
+  original behavior, unknowns and independent implementation decisions.
+- Actual original-package test challenge ran in isolated Chromium with outbound
+  requests blocked by an unreachable proxy. No personal profile or data was used,
+  and the original onboarding consent was not accepted. Synthetic and keyboard
+  events confirmed typo/bulk reset, but physical Backspace preserved a valid prefix.
+- New unit tests cover schema2 migration, strict mutation guards, sequential tickets,
+  pending-policy boundaries, multitab accounting, session statistics, CSV escaping,
+  snapshot privacy and eligibility. `npm test`: 53/53 passed after review fixes.
+- Source-loaded Chromium integration suite: 22/22 passed before focused review fixes.
+- Build syntax/manifest checks and ZIP integrity checks passed.
+- English/Chinese desktop and 390px narrow settings inspected; no horizontal overflow.
+- Independent whole-change review reported three Important issues. All were reproduced
+  and fixed: zero-budget escape, overnight weekday escape, missing-checkpoint session
+  continuity. Focused review was clean; reviewer independently ran 36 targeted tests.
+- Minor content polling feedback was addressed in the same fix wave by removing
+  redundant storage listeners while retaining the existing five-second refresh.
+- Package: 101,805 bytes, 24 files; SHA-256:
+  `f7678a5f2ac96ea18c159e0a4e706ebedc2d7014b071ae4268a9e80948ce880c`.
+
+The extracted v0.2.0 ZIP passed all 22/22 Chromium integration tests after the
+review fixes. Remote CI and publication are pending at this commit; GitHub Actions
+and the release page provide their final status. Full runtime timing parity with
+the original extension is not claimed.
