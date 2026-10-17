@@ -25,8 +25,8 @@ export function matchesPattern(value, pattern) {
   // user-supplied patterns. Only '*' is special; all other bytes are literal.
   const pathname=u.pathname,glob=p.path;let i=0,j=0,star=-1,retry=0;
   while(i<pathname.length){
-    if(j<glob.length&&glob[j]===pathname[i]){i++;j++;}
-    else if(glob[j]==='*'){star=j++;retry=i;}
+    if(glob[j]==='*'){star=j++;retry=i;}
+    else if(j<glob.length&&glob[j]===pathname[i]){i++;j++;}
     else if(star!==-1){j=star+1;i=++retry;}
     else return false;
   }

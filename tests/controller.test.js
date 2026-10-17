@@ -63,3 +63,20 @@ test('scheduled nuclear captures original patterns; malicious imported fields re
  await assert.rejects(c.handle({type:'saveSettings',settings:{...s.settings,nuclear:null},revision:s.revision},trusted),/fields/);
  await c.handle({type:'cancelScheduledNuclear'},trusted);assert.equal((await c.snapshot()).nuclear,null);
 });
+test('clock rollback never recharges an interval, including restart and catch-up',async()=>{
+ const f=setup();let c=f.controller;const tick=()=>c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()});
+ await tick();f.advance(5000);await tick();f.advance(-3000);await tick();
+ c=createController({storage:f.storage,clock:f.now});f.advance(3000);await tick();
+ assert.equal((await c.snapshot()).usage['2026-10-17'].g,5000);
+ f.advance(1000);await tick();assert.equal((await c.snapshot()).usage['2026-10-17'].g,6000);
+});
+test('idle reopen and midnight rollover prune and persist old history',async()=>{
+ const f=setup();let raw=await f.storage.get();raw.stats={'2025-01-01':{old:999},'2026-09-18':{keep:100}};await f.storage.set(raw);
+ let c=createController({storage:f.storage,clock:f.now});
+ assert.equal((await c.handle({type:'getState'},trusted)).stats['2025-01-01'],undefined);
+ assert.equal((await f.storage.get()).stats['2025-01-01'],undefined);
+ assert.ok((await c.snapshot()).stats['2026-09-18']);
+ f.advance(86400000);await c.tick({url:'about:blank',eligible:false,now:f.now()});
+ assert.equal((await c.snapshot()).stats['2026-09-18'],undefined);
+ assert.equal((await f.storage.get()).stats['2026-09-18'],undefined);
+});

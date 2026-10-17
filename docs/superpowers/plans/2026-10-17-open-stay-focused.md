@@ -227,3 +227,11 @@ are shared through the contracts above. The five review-focus classes
 each have explicit tests in their owning task. No remote action occurs
 before the implementation and artifact checks. Execution method is pending
 user selection; recommended method is native execution in this session.
+
+## Execution record
+
+Implementation and focused review fixes are complete. Actual filenames were
+consolidated into `tests/core.test.js` and `tests/browser/extension.spec.js`;
+Chrome eligibility fields are combined into `eligible` at the adapter boundary.
+See `docs/review.md` for decisions and `docs/verification.md` for command results.
+Remote publication remains pending until CI passes.

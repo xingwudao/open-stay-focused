@@ -48,3 +48,14 @@ Minute-aligned schedules and resets are therefore split without assuming a
 Chrome may terminate an idle worker. Durable state is consequently authoritative;
 interval timers are not the source of truth. Integration tests use Playwright's
 bundled Chromium with isolated persistent contexts, including restart tests.
+
+## Review corrections
+
+The accounting checkpoint keeps a timestamp high-water mark when the wall clock
+retreats, preventing replay of already charged intervals. History pruning runs
+on state access and idle reconciliation as well as ordinary accounting, and is
+persisted before exposing a cleaned state. The editor keeps its own settings
+revision, independent of statistics refreshes. Only a settings write increments
+that revision; clearing statistics or starting a session does not replace an
+unsaved draft. Wildcard matching handles '*' before literal equality so URLs
+containing a literal asterisk retain the expected glob semantics.

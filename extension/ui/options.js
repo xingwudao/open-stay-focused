@@ -1,7 +1,7 @@
 import {CHALLENGE,DISTRACTIONS,validateSettings} from '../core/settings.js';
 import {budgetDay,localDay,activeNuclear} from '../core/policy.js';
 import {$,send,duration,notice,clearNotice,challengeIfNeeded,element} from './shared.js';
-let state,draft;
+let state,draft,draftRevision;
 const lines=value=>value.split('\n').map(x=>x.trim()).filter(Boolean);
 const timeText=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
 function parseTime(text,allow24=false){if(!/^\d{2}:\d{2}$/.test(text))throw Error('Use times in HH:MM format.');const [h,m]=text.split(':').map(Number);if(m>59||h>23&&!(allow24&&h===24&&m===0))throw Error('Invalid time.');return h*60+m;}
@@ -24,7 +24,7 @@ function renderGroups(){
 }
 const toggleNames=['YouTube · Shorts','YouTube · Recommendations','YouTube · Comments','Instagram · Reels links','Facebook · Reels links','X · Trending topics','TikTok · Recommendations'];
 function render(){
- draft=structuredClone(state.settings);renderGroups();$('allowlist').value=draft.allowlist.join('\n');$('days').replaceChildren();
+ draftRevision=state.revision;draft=structuredClone(state.settings);renderGroups();$('allowlist').value=draft.allowlist.join('\n');$('days').replaceChildren();
  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((name,day)=>{const l=element('label',name,'day');const c=element('input');c.type='checkbox';c.value=day;c.checked=draft.schedule.days.includes(day);l.prepend(c);$('days').append(l);});
  $('intervals').value=draft.schedule.intervals.map(([a,b])=>`${timeText(a)}-${timeText(b)}`).join('\n');$('reset').value=timeText(draft.resetMinute);$('challenge-enabled').checked=draft.challengeEnabled;
  $('toggles').replaceChildren();DISTRACTIONS.forEach((key,i)=>{const l=element('label',toggleNames[i],'check'),c=element('input');c.type='checkbox';c.dataset.key=key;c.checked=draft.distractions[key];l.prepend(c);$('toggles').append(l);});
@@ -53,7 +53,7 @@ $('add-group').addEventListener('click',()=>act(async()=>{
  const group={id:crypto.randomUUID(),name:$('group-name').value,enabled:true,patterns:lines($('group-patterns').value),budgetMs:Number($('group-minutes').value)*60000};
  const checked=validateSettings({...draft,groups:[...draft.groups,group]});draft.groups=checked.groups;renderGroups();$('group-name').value='';$('group-patterns').value='';notice('Group added to your draft. Save settings to apply it.');
 }));
-$('save').addEventListener('click',()=>act(async()=>{const settings=collect(),challenge=await challengeIfNeeded(state);state=await send({type:'saveSettings',settings,revision:state.revision,challenge});render();notice('Settings saved.');}));
+$('save').addEventListener('click',()=>act(async()=>{const settings=collect(),challenge=await challengeIfNeeded(state);state=await send({type:'saveSettings',settings,revision:draftRevision,challenge});render();notice('Settings saved.');}));
 $('start-focus').addEventListener('click',()=>act(async()=>{
  if(!$('focus-confirm').checked)throw Error('Confirm that the session cannot be canceled once active.');
  const challenge=await challengeIfNeeded(state),startAt=$('focus-start').value?new Date($('focus-start').value).getTime():undefined;
@@ -70,7 +70,7 @@ $('export').addEventListener('click',()=>act(async()=>{
 $('import-file').addEventListener('change',()=>act(async()=>{
  const file=$('import-file').files[0];if(!file)return;
  try {if(file.size>262144)throw Error('Settings must be at most 256 KiB.');let input;try{input=JSON.parse(await file.text());}catch{throw Error('Invalid JSON file. Your settings were not changed.');}
- const settings=validateSettings(input),challenge=await challengeIfNeeded(state);state=await send({type:'saveSettings',settings,revision:state.revision,challenge});render();notice('Settings imported.');
+ const settings=validateSettings(input),challenge=await challengeIfNeeded(state);state=await send({type:'saveSettings',settings,revision:draftRevision,challenge});render();notice('Settings imported.');
  } finally {$('import-file').value='';}
 }));
 setInterval(()=>{if(state)renderSession();},1000);

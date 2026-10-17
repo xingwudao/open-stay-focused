@@ -31,3 +31,22 @@ Chrome Web Store installation and store publication are not part of this release
 
 Independent review, final artifact smoke test, remote CI and publication are
 recorded below when completed; they are not implied by the local checks above.
+
+## Final local verification after review fixes
+
+- Independent review: four Important findings, all reproduced and fixed;
+  no Critical findings. See `review.md` for findings, fixes and decisions.
+- `npm test`: 21/21 passed after the focused fixes.
+- Packaged artifact: `open-stay-focused-0.1.0.zip`, 51,693 bytes, 20 files.
+- `EXTENSION_PATH=dist/unpacked npm run test:browser`: 14/14 passed against
+  the ZIP's extracted contents, including live settings propagation into a
+  controlled social-site fixture without reloading the page.
+- SHA-256:
+  `3ead52417d5d7eec8ea6ae4d1bc38f5663221167092490a597e7038f5ed8d97f`.
+- `npm audit --audit-level=high`: no vulnerabilities reported.
+- Idle/focus browser adapter checks use controlled OS API responses. Quick-add
+  uses the real popup/controller with an injected active-tab API result because
+  headless Chromium does not expose a native toolbar popup as a Playwright page.
+
+Remote CI and publication are pending at this commit. The release's GitHub
+Actions results and release page provide the final remote status.

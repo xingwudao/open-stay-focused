@@ -95,3 +95,9 @@ test('special object keys cannot corrupt quota and hostname statistics',()=>{
  r=accountInterval(r,{url:'https://__proto__',from,to:from+5000,eligible:true});
  assert.equal(Object.getOwnPropertyDescriptor(r.stats['2026-10-17'],'__proto__').value,5000);
 });
+test('wildcard patterns match literal stars in URL paths and enforce quota',()=>{
+ assert.equal(matchesPattern('https://example.com/work/*anything','example.com/work/*'),true);
+ assert.equal(matchesPattern('https://example.com/*xxa','example.com/*a'),true);
+ const s=state();s.settings.groups[0].patterns=['example.com/work/*'];s.settings.groups[0].budgetMs=0;
+ assert.equal(evaluate('https://example.com/work/*anything',time('2026-10-17T12:00:00'),s).blocked,true);
+});

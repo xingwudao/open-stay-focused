@@ -75,7 +75,8 @@ can be canceled before it starts. Clearing statistics never restores budgets.
 - Chrome internal pages, extension pages and restricted domains where Chrome
   prohibits content scripts are outside reliable usage monitoring. Incognito
   is not monitored unless you explicitly allow the extension there.
-- OS clock/timezone changes influence schedules. Disabling/uninstalling the
+- OS clock/timezone changes influence schedules. After a backward clock change,
+  accounting pauses until the previous checkpoint time is reached again. Disabling/uninstalling the
   extension or editing extension storage can bypass restrictions.
 - Distraction controls are independently maintained CSS rules. They hide selected
   elements, not every feed route, and site redesigns may break them. Fixture

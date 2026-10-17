@@ -91,7 +91,7 @@ test('saved settings round-trip through import and exact typing challenge succee
  await page.getByRole('button',{name:'Confirm change'}).click();await expect(page.getByRole('status')).toContainText('saved');
  expect((await settings()).allowlist).toEqual(['example.com/work/*']);
 });
-test('popup quick add and nuclear UI commitment are usable',async()=>{
+test('popup unsupported-state handling and nuclear UI commitment are usable',async()=>{
  const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');
  // Open popup as a page to exercise its full document. Its active-tab target
  // is the popup here, so test unsupported-state handling as well.
@@ -126,4 +126,51 @@ test('content-script messages cannot read private state or write settings',async
  expect(result.result.value.ok).toBe(false);expect(result.result.value.error).toContain('trusted');
  const local=await cdp.send('Runtime.evaluate',{contextId:world.id,expression:"chrome.storage.local.get('state').then(()=>false,()=>true)",awaitPromise:true,returnByValue:true});
  expect(local.result.value).toBe(true);
+});
+test('refreshing usage cannot silently overwrite a newer editor',async()=>{
+ await page.getByLabel('Allowed websites',{exact:true}).fill('old-draft.example');
+ const other=await context.newPage();await other.goto(base+'/ui/options.html');
+ await other.getByLabel('Allowed websites',{exact:true}).fill('new-saved.example');
+ await other.getByRole('button',{name:'Save settings',exact:true}).click();await expect(other.getByRole('status')).toContainText('saved');
+ await page.getByRole('button',{name:'Refresh usage'}).click();await expect(page.getByRole('status')).toContainText('refreshed');
+ await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ await expect(page.getByRole('alert')).toContainText('changed');expect((await settings()).allowlist).toEqual(['new-saved.example']);
+});
+test('popup quick-add saves the active website through the protected settings command',async()=>{
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');
+ const tab=await worker.evaluate(async()=> (await chrome.tabs.query({url:'http://127.0.0.1:4173/*'}))[0]);
+ const popup=await context.newPage();
+ // Headless Chromium doesn't expose its native toolbar popup as a page.
+ // Supply the real site-tab result at the browser API boundary only.
+ await popup.addInitScript(tab=>{chrome.tabs.query=async()=>[tab];},tab);
+ await popup.goto(base+'/ui/popup.html');await expect(popup.locator('#site')).toHaveText('127.0.0.1');
+ await popup.getByRole('button',{name:'Add website'}).click();await expect(popup.getByRole('status')).toContainText('added');
+ expect((await settings()).groups[0].patterns).toEqual(['127.0.0.1']);
+});
+test('adapter excludes idle and unfocused intervals with controlled OS API responses',async()=>{
+ const s=await settings();s.groups=[group(['127.0.0.1'],600000)];await save(s);
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
+ const usage=async()=>Object.values((await send({type:'getState'})).usage).reduce((n,d)=>n+(d.test??0),0);
+ await expect.poll(usage,{timeout:12000}).toBeGreaterThan(0);
+ for(const kind of ['idle','unfocused']){
+  await worker.evaluate(kind=>{
+   globalThis.originalWindow??=chrome.windows.getLastFocused;
+   chrome.idle.queryState=async()=>kind==='idle'?'idle':'active';
+   chrome.windows.getLastFocused=async()=>({...await globalThis.originalWindow(),focused:kind!=='unfocused'});
+  },kind);
+  const before=await usage(),at=Date.now();
+  await expect.poll(()=>worker.evaluate(async()=> (await chrome.storage.local.get('state')).state.checkpoint.at),{timeout:14000}).toBeGreaterThan(at+5500);
+  expect(await usage()).toBe(before);
+ }
+});
+test('distraction settings update an already-open site without reload',async()=>{
+ await context.route('https://www.youtube.com/**',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body><h1>Controlled YouTube fixture</h1><ytd-reel-shelf-renderer>Shorts fixture</ytd-reel-shelf-renderer></body></html>'}));
+ const site=await context.newPage();await site.goto('https://www.youtube.com/');
+ await expect(site.locator('ytd-reel-shelf-renderer')).toBeVisible();
+ const s=await settings();s.distractions.youtubeShorts=true;await save(s);
+ await expect(site.locator('ytd-reel-shelf-renderer')).toBeHidden({timeout:12000});
+ await site.evaluate(()=>{const e=document.createElement('ytd-reel-shelf-renderer');e.textContent='Dynamic Shorts';document.body.append(e);});
+ await expect(site.locator('ytd-reel-shelf-renderer').last()).toBeHidden();
+ s.distractions.youtubeShorts=false;await save(s);
+ await expect(site.locator('ytd-reel-shelf-renderer').last()).toBeVisible({timeout:12000});
 });
