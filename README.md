@@ -28,7 +28,7 @@ accounts or telemetry. Free and MIT licensed.
 
 ## Install
 
-1. Download `open-stay-focused-0.2.2.zip` from
+1. Download `open-stay-focused-0.2.3.zip` from
    [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest).
 2. Extract it into a folder you will keep on your computer.
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
@@ -63,8 +63,9 @@ sites, all websites except allowed ones, or all HTTP(S) websites. An active sess
 cannot be canceled through the extension; a future session can be canceled before
 it starts.
 
-The popup and optional movable page timer update every second under normal
-conditions. Reports include hostname totals, session counts, hourly/daily charts,
+The toolbar popup updates every second while open under normal conditions.
+Closing it stops display updates; background usage accounting continues.
+No floating timer is added to websites. Reports include hostname totals, session counts, hourly/daily charts,
 filters and search. History is retained for 30 local dates. Settings support JSON
 import/export, and reports support local CSV export.
 

@@ -143,3 +143,17 @@ the native-popup test paused after losing OS focus on the shared desktop. After
 explicitly reactivating that real popup when focus is lost, its focused rerun
 passed. Build and packaging passed. No browser API eligibility result is mocked
 for this focus correction (the fixture fixes only physical OS idle state).
+
+
+## 0.2.3 popup-only countdown
+
+Removed website timer rendering and its settings checkbox. Legacy `showTimer=true`
+imports cannot restore the overlay. Native-popup coverage checks continuous
+countdown while open, then closes the popup and verifies background usage continues
+without website timer UI. Heartbeat recovery and distraction hiding remain active.
+
+Validation: 56 unit/package tests passed. Initial browser run passed 21 tests;
+five accounting tests hit physical-host idle state. Normal browser fixtures now
+explicitly set active OS idle state; dedicated idle/lock tests retain their own
+controlled transitions. All five affected tests plus the native popup close test
+passed in a focused six-test rerun. Build and packaging passed.

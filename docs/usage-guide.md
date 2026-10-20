@@ -1,5 +1,9 @@
 # Usage guide and upgrade notes
 
+Since 0.2.3, countdown display is confined to the toolbar popup. The former page
+floating timer is removed, including for existing installations. Background usage
+tracking continues when the popup closes. The 0.2 notes below describe its history.
+
 [English overview](../README.md) · [中文概览](../README.zh-CN.md)
 
 ## What changes in 0.2

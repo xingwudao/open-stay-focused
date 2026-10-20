@@ -17,7 +17,7 @@ test('foreground and optional audio tracking use browser eligibility',()=>{
 test('page timer payload exposes only current-page totals and display preference',()=>{
  const state=initialState();state.settings.showTimer=true;state.settings.groups=[{id:'g',name:'Private name',enabled:true,budgetMs:60000,patterns:['a.example']}];
  const timer=pageTimer(tabs[0],state,now,true);
- assert.equal(timer.show,true);assert.equal(timer.remainingMs,60000);assert.equal(timer.running,true);
+ assert.equal(timer.show,false);assert.equal(timer.remainingMs,60000);assert.equal(timer.running,true);
  assert.equal(JSON.stringify(timer).includes('Private name'),false);assert.equal('state' in timer,false);
  assert.equal(pageTimer(tabs[1],state,now,false).show,false);
 });

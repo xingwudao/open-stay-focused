@@ -78,8 +78,10 @@ hourly bins use local calendar boundaries. `sessionCounts`, `hourly` and `active
 augment legacy daily totals; no full browsing-path ledger is retained. A lost runtime
 checkpoint ends continuity rather than inventing time or merging sessions across restart.
 
-Popup, settings statistics and floating timer refresh once per second from settled
-authoritative state. Refreshes never replace a dirty settings draft or its revision.
+The toolbar popup and settings statistics refresh once per second from settled
+authoritative state while open. Closing the popup tears down its display polling,
+but background accounting continues. Since 0.2.3, content scripts render no timer;
+the legacy `showTimer` setting is accepted for import compatibility but ignored. Refreshes never replace a dirty settings draft or its revision.
 This implementation checkpoints aggregate ledgers during samples; it does not copy
 StayFocusd's broader IndexedDB page-view and analytics schema. Performance and callback
 throttling are limits, not guarantees of hard real-time execution.

@@ -11,7 +11,7 @@ export function eligibleVisits({tabs,win,idle,beats,now,trackAudio=false,popupFo
 }
 export function pageTimer(tab,state,now,running){
  const decision=evaluate(tab?.url,now,state),host=webURL(tab?.url)?.hostname;
- return {show:!!(state.settings.showTimer&&state.settings.enabled!==false&&decision.remainingMs!==null),language:state.settings.language,
+ return {show:false,language:state.settings.language,
   remainingMs:decision.remainingMs,usedMs:host?(state.stats[localDay(now)]?.[host]??0):0,
   reason:decision.reason,running:!!running};
 }

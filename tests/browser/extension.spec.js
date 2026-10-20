@@ -8,6 +8,8 @@ test.beforeEach(async()=>{
  context=await chromium.launchPersistentContext('',{channel:'chromium',headless:true,args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
  worker=context.serviceWorkers()[0]??await context.waitForEvent('serviceworker');
  base=`chrome-extension://${new URL(worker.url()).host}`;
+ // Keep normal accounting fixtures independent of the host machine's idle time.
+ await worker.evaluate(()=>{chrome.idle.queryState=async()=>'active';});
  page=await context.newPage();await page.goto(base+'/ui/options.html');
  const initial=await send({type:'getState'});initialSettings=initial.settings;if(initial.settings.challengeEnabled){await save({...initial.settings,challengeEnabled:false});await page.reload();}
 });
@@ -55,7 +57,7 @@ test('nuclear session locks mutations and survives worker termination',async()=>
 });
 test('challenge and invalid imports show errors; clear stats preserves quota',async()=>{
  const s=await settings();s.challengeEnabled=true;await save(s);await page.reload();
- await page.locator('#show-timer').uncheck();await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ await page.locator('#challenge-enabled').uncheck();await page.getByRole('button',{name:'Save settings',exact:true}).click();
  await expect(page.getByRole('dialog')).toBeVisible();
  await page.getByLabel('Type the sentence exactly').fill('wrong');
  await page.getByRole('button',{name:'Confirm change'}).click();
