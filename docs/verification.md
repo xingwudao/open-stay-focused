@@ -121,3 +121,25 @@ build and deterministic packaging passed. Running the same native-popup regressi
 against a temporary copy of the pre-fix production files failed as expected: the
 display stayed at 600 seconds instead of decreasing below 598. This baseline run
 controlled OS idle state, isolating the window-focus regression.
+
+
+## 0.2.2 recovery and language preference
+
+A stopped page-heartbeat browser test checks automatic script reattachment without
+website navigation. This tests the recovery path, not a completed end-to-end
+Chrome extension reload: the attempted reload probe did not deliver a replacement
+worker event in the test harness. Personal-browser runtime validation remains pending.
+A focused, Chrome-verified toolbar popup now supplies activity evidence even if
+the page heartbeat has not recovered. Idle/lock rules still apply. Popup status
+explains pauses and shows the running extension version.
+
+Language selection saves only the locale immediately with a revision check. Other
+settings drafts are preserved and are not included in this command. Tests check
+popup translation without a separate settings save, rejected stale/untrusted
+commands, and unchanged restriction settings.
+
+Validation: 56 unit/package tests passed. The full browser run passed 25 tests;
+the native-popup test paused after losing OS focus on the shared desktop. After
+explicitly reactivating that real popup when focus is lost, its focused rerun
+passed. Build and packaging passed. No browser API eligibility result is mocked
+for this focus correction (the fixture fixes only physical OS idle state).

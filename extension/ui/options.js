@@ -62,9 +62,14 @@ function collect(){
  for(const c of $('toggles').querySelectorAll('input'))draft.distractions[c.dataset.key]=c.checked;
  return validateSettings(draft);
 }
-$('language').addEventListener('change',()=>{draft.language=$('language').value;setLanguage(draft.language);clearNotice();renderGroups();
+$('language').addEventListener('change',()=>act(async()=>{
+ const language=$('language').value;
+ try{state=await send({type:'setLanguage',language,revision:draftRevision});}
+ catch(error){$('language').value=draft.language;throw error;}
+ draft.language=language;draftRevision=state.revision;setLanguage(language);renderGroups();
  [...$('days').children].forEach((label,i)=>label.lastChild.textContent=t(['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][i]));
- [...$('toggles').children].forEach((label,i)=>label.lastChild.textContent=t(toggleNames[i]));renderSession();renderStats();});
+ [...$('toggles').children].forEach((label,i)=>label.lastChild.textContent=t(toggleNames[i]));renderSession();renderStats();notice('Language saved. Other changes still need Save settings.');
+}));
 $('add-group').addEventListener('click',()=>act(async()=>{
  const group={id:crypto.randomUUID(),name:$('group-name').value,enabled:true,patterns:lines($('group-patterns').value),budgetMs:Number($('group-minutes').value)*60000};
  const checked=validateSettings({...draft,groups:[...draft.groups,group]});draft.groups=checked.groups;renderGroups();$('group-name').value='';$('group-patterns').value='';notice('Group added to your draft. Save settings to apply it.');

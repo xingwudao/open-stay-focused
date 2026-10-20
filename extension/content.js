@@ -1,5 +1,8 @@
 (() => {
+ if(globalThis.__openStayFocusedAlive?.())return;
+ globalThis.__openStayFocusedStop?.();
  let alive=true,style,timerHost,timerText,timerStatus,closeButton,dismissed=false,pending=false;
+ globalThis.__openStayFocusedAlive=()=>alive&&!!chrome.runtime?.id;
  let lastRemaining=null,warningUntil=0;
  async function send(type){
   if(!alive)return null;
@@ -46,7 +49,8 @@
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')void heartbeat();});
  window.addEventListener('pageshow',()=>void heartbeat());
  document.addEventListener('DOMContentLoaded',()=>{void update();void heartbeat();},{once:true});
- setInterval(()=>void heartbeat(),1000);
- setInterval(()=>void update(),5000);
+ const heartbeatInterval=setInterval(()=>void heartbeat(),1000);
+ const updateInterval=setInterval(()=>void update(),5000);
+ globalThis.__openStayFocusedStop=()=>{alive=false;clearInterval(heartbeatInterval);clearInterval(updateInterval);timerHost?.remove();style?.remove();};
  void heartbeat();void update();
 })();

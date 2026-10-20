@@ -3,7 +3,7 @@ import {evaluate,localDay} from './core/policy.js';
 import {webURL} from './core/patterns.js';
 import {eligibleVisits,pageTimer} from './core/tracking.js';
 const UI_PATHS=new Set(['/ui/options.html','/ui/popup.html','/ui/blocked.html']);
-const beats=new Map();
+const beats=new Map(),injectionAttempts=new Map();
 let popupFocus=null;
 let pipeline=Promise.resolve(),ticker=null,tickQueued=false,lastBadge='';
 function serial(fn){const result=pipeline.then(fn);pipeline=result.catch(()=>{});return result;}
@@ -53,10 +53,21 @@ async function rememberPopupFocus(message,sender){
  const win=await chrome.windows.getLastFocused();
  popupFocus={documentId:contexts[0].documentId,windowId:win.id,at:Date.now()};
 }
+function recoverPage(tab,now){
+ if(!tab?.id||!webURL(tab.url)||tab.status==='loading')return;
+ const beat=beats.get(tab.id),last=injectionAttempts.get(tab.id);
+ if(beat&&beat.url===tab.url&&now-beat.at<15000)return;
+ if(last&&last.url===tab.url&&now-last.at<10000)return;
+ injectionAttempts.set(tab.id,{url:tab.url,at:now});
+ // Reloaded extensions leave existing tabs with invalidated content scripts.
+ // Reattach only our declared scripts, using the already-granted host access.
+ void chrome.scripting.executeScript({target:{tabId:tab.id},files:['distractions.js','content.js']}).catch(()=>{});
+}
 async function sample(){
  const now=Date.now(),before=await controller.snapshot();
  const [win,tabs,idle]=await Promise.all([chrome.windows.getLastFocused().catch(()=>null),chrome.tabs.query({}),chrome.idle.queryState(60)]);
  const tab=tabs.find(t=>t.active&&t.windowId===win?.id);
+ recoverPage(tab,now);
  // On macOS a toolbar popup takes focus away from its owning browser window.
  // Accept only a fresh focus report from a live, Chrome-identified POPUP context.
  const popupAlive=popupFocus&&popupFocus.windowId===win?.id&&now>=popupFocus.at&&now-popupFocus.at<1500
@@ -64,7 +75,7 @@ async function sample(){
  const visits=eligibleVisits({tabs,win,idle,beats,now,trackAudio:before.settings.trackAudio,popupFocused:!!popupAlive});
  await controller.tick({url:tab?.url??'',tabId:tab?.id,visits,eligible:visits.length>0,now});
  const state=await controller.snapshot();setTicker(visits.length>0);await badge(tab,state);
- return {tab,tabs,visits,state};
+ return {tab,tabs,visits,state,idle,hasHeartbeat:!!(tab&&beats.get(tab.id)?.url===tab.url&&now-beats.get(tab.id).at<15000)};
 }
 async function refresh(){const {tabs,state}=await sample();for(const tab of tabs)await redirect(tab,state);}
 function report(error){console.error('Open Stay Focused:',error.message);lastBadge='';chrome.action.setBadgeText({text:'!'}).catch(()=>{});chrome.action.setTitle({title:`Open Stay Focused: ${error.message}`}).catch(()=>{});}
@@ -79,7 +90,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     const host=webURL(live.tab?.url)?.hostname;
     return {state:cleanState(live.state),tab:live.tab?{id:live.tab.id,url:live.tab.url}:null,
      decision:evaluate(live.tab?.url,Date.now(),live.state),hostUsedMs:host?(live.state.stats[localDay(Date.now())]?.[host]??0):0,
-     eligible:live.visits.some(v=>v.tabId===live.tab?.id)};
+     eligible:live.visits.some(v=>v.tabId===live.tab?.id),idle:live.idle,hasHeartbeat:live.hasHeartbeat};
    }
    const data=await controller.handle(message,{trustedUI:true});
    if(['saveSettings','startNuclear','cancelScheduledNuclear','clearStats'].includes(message.type)){
@@ -98,7 +109,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
 });
 chrome.tabs.onActivated.addListener(schedule);
 chrome.tabs.onUpdated.addListener((_id,change)=>{if(change.url||change.status==='complete'||Object.hasOwn(change,'audible'))schedule();});
-chrome.tabs.onRemoved.addListener(id=>{beats.delete(id);schedule();});
+chrome.tabs.onRemoved.addListener(id=>{beats.delete(id);injectionAttempts.delete(id);schedule();});
 chrome.windows.onFocusChanged.addListener(schedule);
 chrome.idle.onStateChanged.addListener(schedule);
 chrome.webNavigation.onHistoryStateUpdated.addListener(details=>{if(details.frameId===0)schedule();});

@@ -1,6 +1,7 @@
 import {setLanguage,t} from './i18n.js';
 import {$,send,duration,notice,mutate,element} from './shared.js';
 import {webURL} from '../core/patterns.js';
+$('version').textContent='v'+chrome.runtime.getManifest().version;
 let state,tab,busy=false,refreshing=false,groupSignature='';
 async function load(){
  if(refreshing||busy)return;refreshing=true;
@@ -10,6 +11,9 @@ async function load(){
  $('site').textContent=url?.hostname??t('Browser or extension page');$('remaining').textContent=duration(decision.remainingMs);
  $('host-usage').textContent=t('Today on this website: {time}',{time:duration(live.hostUsedMs??0)});
  $('reason').textContent=t(({'available':'Available within your current rules.','allowed':'This page is on your allowlist.','unsupported':'Budgets apply to HTTP and HTTPS websites.','nuclear':'A focus session is active.','quota':'Daily budget reached.','paused':'Restrictions are paused.','disabled':'Restrictions are paused.','outside-schedule':'Outside active hours. Your budget is paused.'})[decision.reason]??'Available within your current rules.');
+ if(decision.remainingMs!==null&&decision.reason==='available'&&!live.eligible){
+  $('reason').textContent=t(live.idle==='locked'?'Timer paused: your device is locked.':live.idle==='idle'?'Timer paused: no activity for 60 seconds. Move the mouse or press a key to resume.':!live.hasHeartbeat?'Reconnecting to this page. Refresh the website if the timer stays paused.':'Timer paused: return focus to this browser window.');
+ }
  $('quick-add').disabled=!url;$('quick-allow').hidden=state.settings.hideQuickAllow;$('quick-allow').disabled=!url;
  $('pause').hidden=state.settings.hidePause;$('pause').textContent=t(state.settings.enabled?'Pause restrictions':'Resume restrictions');
  const signature=JSON.stringify([state.settings.language,state.settings.groups.map(g=>[g.id,g.name])]);

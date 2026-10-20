@@ -67,17 +67,31 @@ test('native toolbar popup keeps counting while it holds browser focus',async()=
   const requestId=++id;
   const listener=event=>{if(event.sessionId!==sessionId)return;const message=JSON.parse(event.message);if(message.id!==requestId)return;cdp.off('Target.receivedMessageFromTarget',listener);if(message.error)reject(Error(message.error.message));else resolve(JSON.parse(message.result.result.value));};
   cdp.on('Target.receivedMessageFromTarget',listener);
-  cdp.send('Target.sendMessageToTarget',{sessionId,message:JSON.stringify({id:requestId,method:'Runtime.evaluate',params:{expression:'JSON.stringify({text:document.querySelector("#remaining").textContent,focused:document.hasFocus()})',returnByValue:true}})}).catch(reject);
+  cdp.send('Target.sendMessageToTarget',{sessionId,message:JSON.stringify({id:requestId,method:'Runtime.evaluate',params:{expression:'JSON.stringify({text:document.querySelector("#remaining").textContent,focused:document.hasFocus(),reason:document.querySelector("#reason").textContent})',returnByValue:true}})}).catch(reject);
  });
  await expect.poll(async()=>(await read()).focused).toBe(true);
- const seconds=async()=>{const {text}=await read();const m=text.match(/(\d+)m (\d+)s/);return m?Number(m[1])*60+Number(m[2]):null;};
+ // Keep the native popup foreground on a shared desktop; focus loss is a valid pause.
+ const seconds=async()=>{const view=await read();if(!view.focused)await cdp.send('Target.activateTarget',{targetId:target.targetId});const {text}=view;const m=text.match(/(\d+)m (\d+)s/);return m?Number(m[1])*60+Number(m[2]):null;};
  await expect.poll(seconds).not.toBeNull();const start=await seconds();
- await expect.poll(seconds,{timeout:6000}).toBeLessThan(start-2);
- const next=await seconds();await expect.poll(seconds,{timeout:6000}).toBeLessThan(next-2);
+ await expect.poll(seconds,{timeout:10000}).toBeLessThan(start-2);
+ const next=await seconds();await expect.poll(seconds,{timeout:10000}).toBeLessThan(next-2);
  await worker.evaluate(()=>{chrome.idle.queryState=async()=>'locked';});
  await expect.poll(async()=>{const {checkpoint}=await worker.evaluate(()=>chrome.storage.session.get('checkpoint'));return checkpoint.visits.length;}).toBe(0);
  // Let the popup display the final settled interval, then prove it stops.
  await new Promise(resolve=>setTimeout(resolve,1200));const locked=await seconds();
  await new Promise(resolve=>setTimeout(resolve,2200));expect(await seconds()).toBe(locked);
  await cdp.send('Target.closeTarget',{targetId:target.targetId});
+});
+
+
+test('stopped page heartbeats recover without reloading the website',async()=>{
+ await setup();const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
+ await expect(site.locator('#open-stay-focused-timer')).toBeVisible();
+ const tabs=await worker.evaluate(()=>chrome.tabs.query({}));const tab=tabs.find(t=>t.url==='http://127.0.0.1:4173/');
+ await worker.evaluate(id=>chrome.scripting.executeScript({target:{tabId:id},func:()=>globalThis.__openStayFocusedStop()}),tab.id);
+ await expect(site.locator('#open-stay-focused-timer')).toHaveCount(0);
+ await expect(site.locator('#open-stay-focused-timer')).toBeVisible({timeout:22000});
+ const start=Object.values((await state()).usage).reduce((n,d)=>n+(d.live??0),0);
+ await expect.poll(async()=>Object.values((await state()).usage).reduce((n,d)=>n+(d.live??0),0),{timeout:6000}).toBeGreaterThan(start+1500);
+ await expect(site.locator('#open-stay-focused-timer')).toHaveCount(1);
 });

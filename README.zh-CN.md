@@ -27,7 +27,7 @@
 ## 安装方法
 
 1. 从 [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest)
-   下载 `open-stay-focused-0.2.1.zip`。
+   下载 `open-stay-focused-0.2.2.zip`。
 2. 解压到准备长期保留的文件夹。
 3. 打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”，
    选中包含 `manifest.json` 的解压文件夹。
@@ -42,7 +42,7 @@
 [升级说明（英文）](docs/usage-guide.md#what-changes-in-02)。
 
 切换语言：在设置顶部的 **Language / 语言** 中选择 **简体中文** 或 **English**，
-然后保存。新打开的弹窗、设置页和拦截页会使用已保存的语言。
+语言会立即保存；其他设置仍需点击保存。新打开的弹窗、设置页和拦截页会使用已保存的语言。
 已有安装默认使用英文。语言切换不会解除专注锁定或输入挑战。
 
 ## 网站限时、强制专注与本地统计

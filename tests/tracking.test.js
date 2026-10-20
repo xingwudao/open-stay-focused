@@ -27,7 +27,13 @@ test('focused toolbar popup counts its active site without bypassing idle or vis
  assert.deepEqual(eligibleVisits(input),[{url:tabs[0].url,tabId:1}]);
  for(const idle of ['idle','locked'])assert.deepEqual(eligibleVisits({...input,idle}),[]);
  assert.deepEqual(eligibleVisits({...input,win:{...input.win,state:'minimized'}}),[]);
- assert.deepEqual(eligibleVisits({...input,now:now+16000}),[]);
+ assert.deepEqual(eligibleVisits({...input,now:now+16000,popupFocused:false}),[]);
  assert.deepEqual(eligibleVisits({...input,popupFocused:false}),[]);
  assert.deepEqual(eligibleVisits({...input,tabs:tabs.map(t=>({...t,active:false}))}),[]);
+});
+
+test('focused popup is fresh activity evidence even before page heartbeat recovers',()=>{
+ const input={tabs,win:{...win,focused:false},idle:'active',beats:new Map(),now,popupFocused:true};
+ assert.deepEqual(eligibleVisits(input),[{url:tabs[0].url,tabId:1}]);
+ assert.deepEqual(eligibleVisits({...input,popupFocused:false}),[]);
 });

@@ -27,6 +27,8 @@ User-entered settings can contain paths because path rules are configurable.
 
 ## Permissions
 
+- `scripting`: reconnect the extension’s bundled content scripts on already-open
+  websites after an extension reload, within the same granted HTTP(S) host access.
 - `storage`: save settings, quotas and local statistics.
 - `tabs`: identify the active website and redirect blocked tabs.
 - `alarms`: reconcile scheduled sessions and limits after background suspension.

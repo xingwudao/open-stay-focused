@@ -57,6 +57,12 @@ export function createController({storage,clock=Date.now}) {
     if(!context?.trustedUI)throw Error('A trusted extension page is required.');
     const loaded=await load(),now=clock();
     if(cmd?.type==='getState')return structuredClone(loaded);
+    if(cmd?.type==='setLanguage'){
+      if(cmd.revision!==loaded.revision)throw Error('Settings changed in another page. Reload before saving.');
+      const next=structuredClone(loaded);
+      next.settings=validateSettings({...next.settings,language:cmd.language});
+      next.revision++;return commit(next);
+    }
     const current=settle(loaded,now);
     for(const [id,t] of tickets)if(t.expiresAt<=now||t.revision!==current.revision)tickets.delete(id);
     if(cmd?.type==='confirmChange'){

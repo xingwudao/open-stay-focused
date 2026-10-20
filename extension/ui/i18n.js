@@ -96,6 +96,13 @@ const zh = {
  'Enter a hostname or hostname/path.':'请输入域名或域名/路径。','Patterns cannot contain credentials, ports, queries or fragments.':'规则不能包含凭据、端口、查询参数或片段。','Invalid hostname.':'域名无效。','Use a valid hostname; wildcard hostnames are not supported.':'请使用有效域名；域名不支持通配符。',
  'Unsupported saved state version.':'不支持此保存状态版本。','A trusted extension page is required.':'此操作需要来自可信的扩展页面。','Unknown command.':'未知操作。','Complete the typing challenge first.':'请先完成输入挑战。','A nuclear session is active. Settings are locked until it ends.':'强制专注正在进行。结束前设置保持锁定。','Settings changed in another page. Reload before saving.':'设置已在其他页面修改。请刷新后再保存。','Choose a mode and 1–1,440 minutes.':'请选择模式，时长须为 1–1,440 分钟。','Choose a start time within the next year.':'请选择未来一年内的开始时间。'
 };
+Object.assign(zh,{
+ 'Language saved. Other changes still need Save settings.':'语言已保存。其他修改仍需点击保存设置。',
+ 'Timer paused: your device is locked.':'计时暂停：设备已锁定。',
+ 'Timer paused: no activity for 60 seconds. Move the mouse or press a key to resume.':'计时暂停：已连续 60 秒无操作。移动鼠标或按键即可恢复。',
+ 'Reconnecting to this page. Refresh the website if the timer stays paused.':'正在重新连接页面。如果计时仍暂停，请刷新网站。',
+ 'Timer paused: return focus to this browser window.':'计时暂停：请返回此浏览器窗口。'
+});
 let language='en';
 const originals=[];
 if(typeof document!=='undefined'){

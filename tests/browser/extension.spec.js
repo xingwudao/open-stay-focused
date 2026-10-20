@@ -206,10 +206,12 @@ test('Chinese challenge, validation and settings export use the saved language',
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'导出设置'}).click();
  const stream=await (await download).createReadStream();const chunks=[];for await(const chunk of stream)chunks.push(chunk);
  expect(JSON.parse(Buffer.concat(chunks).toString()).language).toBe('zh-CN');
- await page.locator('#language').selectOption('en');await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ await page.locator('#challenge-enabled').uncheck();await page.getByRole('button',{name:'保存设置',exact:true}).click();
  const phrase=await page.locator('#challenge-phrase').innerText();expect(phrase).toContain('我的注意力');
- await page.locator('#challenge-input').fill(phrase);await page.getByRole('button',{name:'Confirm change'}).click();
- await expect(page.getByRole('status')).toHaveText('Settings saved.');expect((await settings()).language).toBe('en');
+ await page.locator('#challenge-input').fill(phrase);await page.getByRole('button',{name:'确认修改'}).click();
+ await expect(page.getByRole('status')).toHaveText('设置已保存。');
+ await page.locator('#language').selectOption('en');
+ await expect.poll(async()=>(await settings()).language).toBe('en');
 });
 
 test('live popup refresh preserves selection and options preserve unsaved drafts',async()=>{
@@ -252,4 +254,16 @@ test('default protections are enabled and allowance increases require every conf
  await expect(page.locator('#pause')).toBeHidden();await page.getByLabel('Minutes per day',{exact:true}).fill('2');await page.locator('#save').click();
  for(let i=1;i<=8;i++){await expect(page.getByRole('heading',{name:`Confirm change ${i} of 8`})).toBeVisible();expect((await settings()).groups[0].budgetMs).toBe(60000);await page.getByRole('button',{name:'Continue',exact:true}).click();}
  await expect(page.getByRole('status')).toContainText('saved');expect((await settings()).groups[0].budgetMs).toBe(120000);
+});
+
+
+test('language selection immediately reaches popup without saving website drafts',async()=>{
+ await page.locator('#allowlist').fill('unsaved.example');
+ await page.locator('#language').selectOption('zh-CN');
+ await expect(page.getByRole('status')).toHaveText('语言已保存。其他修改仍需点击保存设置。');
+ expect((await settings()).allowlist).not.toContain('unsaved.example');
+ expect((await settings()).language).toBe('zh-CN');
+ const popup=await context.newPage();await popup.goto(base+'/ui/popup.html');
+ await expect(popup.getByRole('button',{name:'设置',exact:true})).toBeVisible();
+ await expect(page.locator('#allowlist')).toHaveValue('unsaved.example');
 });

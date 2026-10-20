@@ -83,3 +83,14 @@ test('idle reopen and midnight rollover prune and persist old history',async()=>
  assert.equal((await c.snapshot()).stats['2026-09-18'],undefined);
  assert.equal((await f.storage.get()).stats['2026-09-18'],undefined);
 });
+
+test('language preference saves independently without changing restrictions or accepting extra settings',async()=>{
+ const f=setup(),before=await f.controller.snapshot();
+ const after=await f.controller.handle({type:'setLanguage',language:'zh-CN',revision:before.revision,settings:{enabled:false}},trusted);
+ assert.equal(after.settings.language,'zh-CN');
+ assert.deepEqual({...after.settings,language:before.settings.language},before.settings);
+ assert.equal(after.revision,before.revision+1);
+ await assert.rejects(f.controller.handle({type:'setLanguage',language:'en',revision:before.revision},trusted),/another page/);
+ await assert.rejects(f.controller.handle({type:'setLanguage',language:'bad',revision:after.revision},trusted),/language/);
+ await assert.rejects(f.controller.handle({type:'setLanguage',language:'en',revision:after.revision},{}),/trusted/);
+});

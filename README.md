@@ -28,7 +28,7 @@ accounts or telemetry. Free and MIT licensed.
 
 ## Install
 
-1. Download `open-stay-focused-0.2.1.zip` from
+1. Download `open-stay-focused-0.2.2.zip` from
    [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest).
 2. Extract it into a folder you will keep on your computer.
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
@@ -46,7 +46,8 @@ Version 0.2 enables commitment protections for existing installations immediatel
 read the [upgrade notes](docs/usage-guide.md#what-changes-in-02) before updating.
 
 To switch languages, choose **English** or **简体中文** under **Language / 语言**
-at the top of Settings and save. Newly opened popup, settings and blocked pages
+at the top of Settings. Language saves immediately; other settings still require
+Save settings. Newly opened popup, settings and blocked pages
 use the saved language. Existing installations default to English.
 
 ## Website limits, focus sessions and local reports
