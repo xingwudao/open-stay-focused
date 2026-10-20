@@ -4,6 +4,7 @@ import {webURL} from './core/patterns.js';
 import {eligibleVisits,pageTimer} from './core/tracking.js';
 const UI_PATHS=new Set(['/ui/options.html','/ui/popup.html','/ui/blocked.html']);
 const beats=new Map();
+let popupFocus=null;
 let pipeline=Promise.resolve(),ticker=null,tickQueued=false,lastBadge='';
 function serial(fn){const result=pipeline.then(fn);pipeline=result.catch(()=>{});return result;}
 const storage={
@@ -44,11 +45,23 @@ async function badge(tab,state){
  await chrome.action.setBadgeText({text});await chrome.action.setBadgeBackgroundColor({color});
  await chrome.action.setTitle({title:'Open Stay Focused'});
 }
+async function rememberPopupFocus(message,sender){
+ if(message.type!=='getLiveState'||sender.tab||!sender.url?.endsWith('/ui/popup.html'))return;
+ const contexts=await chrome.runtime.getContexts({contextTypes:['POPUP'],documentUrls:[sender.url]});
+ if(contexts.length!==1)return; // A popup opened as a regular tab is not a focus proxy.
+ if(!message.popupFocused){popupFocus=null;return;}
+ const win=await chrome.windows.getLastFocused();
+ popupFocus={documentId:contexts[0].documentId,windowId:win.id,at:Date.now()};
+}
 async function sample(){
  const now=Date.now(),before=await controller.snapshot();
  const [win,tabs,idle]=await Promise.all([chrome.windows.getLastFocused().catch(()=>null),chrome.tabs.query({}),chrome.idle.queryState(60)]);
  const tab=tabs.find(t=>t.active&&t.windowId===win?.id);
- const visits=eligibleVisits({tabs,win,idle,beats,now,trackAudio:before.settings.trackAudio});
+ // On macOS a toolbar popup takes focus away from its owning browser window.
+ // Accept only a fresh focus report from a live, Chrome-identified POPUP context.
+ const popupAlive=popupFocus&&popupFocus.windowId===win?.id&&now>=popupFocus.at&&now-popupFocus.at<1500
+  &&(await chrome.runtime.getContexts({contextTypes:['POPUP'],documentIds:[popupFocus.documentId]})).length>0;
+ const visits=eligibleVisits({tabs,win,idle,beats,now,trackAudio:before.settings.trackAudio,popupFocused:!!popupAlive});
  await controller.tick({url:tab?.url??'',tabId:tab?.id,visits,eligible:visits.length>0,now});
  const state=await controller.snapshot();setTicker(visits.length>0);await badge(tab,state);
  return {tab,tabs,visits,state};
@@ -60,6 +73,7 @@ function cleanState(state){const data=structuredClone(state);delete data.checkpo
 chrome.runtime.onMessage.addListener((message,sender,respond)=>{
  serial(async()=>{
   if(trustedUI(sender)) {
+   await rememberPopupFocus(message,sender);
    const live=await sample();
    if(message.type==='getLiveState'){
     const host=webURL(live.tab?.url)?.hostname;

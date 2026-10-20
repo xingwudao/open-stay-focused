@@ -27,7 +27,7 @@
 ## 安装方法
 
 1. 从 [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest)
-   下载 `open-stay-focused-0.2.0.zip`。
+   下载 `open-stay-focused-0.2.1.zip`。
 2. 解压到准备长期保留的文件夹。
 3. 打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”，
    选中包含 `manifest.json` 的解压文件夹。
@@ -81,6 +81,7 @@
 ### 网站浏览时长是怎样计算的？
 
 默认只计算获得焦点的浏览器窗口中的活动标签页。
+工具栏弹窗打开并获得焦点时，仍会继续计算下方活动网站的时间。
 Chrome 检测到连续 60 秒无操作后，前台计时暂停。
 后台音频计时默认关闭，可手动启用；系统锁定时暂停全部计时。
 同一域名或同一分组中的并发标签页，会在对应域名或分组的计时中去重。

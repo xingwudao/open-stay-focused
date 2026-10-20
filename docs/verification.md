@@ -101,3 +101,23 @@ The extracted v0.2.0 ZIP passed all 22/22 Chromium integration tests after the
 review fixes. Remote CI and publication are pending at this commit; GitHub Actions
 and the release page provide their final status. Full runtime timing parity with
 the original extension is not claimed.
+
+
+## 0.2.1 toolbar popup focus regression
+
+A headed Chromium test opens the real toolbar popup with `chrome.action.openPopup`
+and inspects its DOM through an isolated test CDP target. On macOS, the owning
+window reports `focused: false` while the popup has focus. Previously this paused
+accounting despite one-second UI polling. A short-lived focus report from a
+Chrome-verified POPUP context now keeps the underlying active website eligible,
+while existing idle, lock, minimized-window and heartbeat rules still apply.
+Regular extension tabs cannot supply this focus override.
+
+The regression test checks two successive countdown decreases and verifies system
+lock stops the timer. Linux CI uses Xvfb for this headed test.
+
+Local validation on 2026-10-20: 54 unit/package tests and 24 browser tests passed;
+build and deterministic packaging passed. Running the same native-popup regression
+against a temporary copy of the pre-fix production files failed as expected: the
+display stayed at 600 seconds instead of decreasing below 598. This baseline run
+controlled OS idle state, isolating the window-focus regression.

@@ -1,9 +1,9 @@
 import {test,expect,chromium} from '@playwright/test';
 import path from 'node:path';
 let context,worker,page,base;
-test.beforeEach(async()=>{
+test.beforeEach(async({},testInfo)=>{
  const extension=path.resolve(process.env.EXTENSION_PATH??'extension');
- context=await chromium.launchPersistentContext('',{channel:'chromium',headless:true,args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
+ context=await chromium.launchPersistentContext('',{channel:'chromium',headless:!testInfo.title.includes('native toolbar'),args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
  worker=context.serviceWorkers()[0]??await context.waitForEvent('serviceworker');base='chrome-extension://'+new URL(worker.url()).host;
  page=await context.newPage();await page.goto(base+'/ui/options.html');
  // Explicit test-fixture opt-out through the valid challenge; production defaults
@@ -48,4 +48,36 @@ test('popup countdown keeps decreasing against the live website budget',async()=
  const next=await seconds();await expect.poll(seconds,{timeout:6000}).toBeLessThan(next-1);
  const s=await state(),used=Object.values(s.usage).reduce((n,d)=>n+(d.live??0),0);
  expect(Math.abs((await seconds())-Math.ceil((600000-used)/1000))).toBeLessThanOrEqual(2);
+});
+
+
+test('native toolbar popup keeps counting while it holds browser focus',async()=>{
+ await setup();
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
+ await worker.evaluate(async()=>{const win=await chrome.windows.getLastFocused();await chrome.windows.update(win.id,{focused:true});});
+ // Isolate popup focus from the host machine's physical idle duration.
+ await worker.evaluate(()=>{chrome.idle.queryState=async()=>'active';});
+ await worker.evaluate(()=>chrome.action.openPopup());
+ const cdp=await context.newCDPSession(site);
+ const targets=await cdp.send('Target.getTargets');
+ const target=targets.targetInfos.find(t=>t.url===base+'/ui/popup.html');expect(target).toBeTruthy();
+ const {sessionId}=await cdp.send('Target.attachToTarget',{targetId:target.targetId});
+ let id=0;
+ const read=()=>new Promise((resolve,reject)=>{
+  const requestId=++id;
+  const listener=event=>{if(event.sessionId!==sessionId)return;const message=JSON.parse(event.message);if(message.id!==requestId)return;cdp.off('Target.receivedMessageFromTarget',listener);if(message.error)reject(Error(message.error.message));else resolve(JSON.parse(message.result.result.value));};
+  cdp.on('Target.receivedMessageFromTarget',listener);
+  cdp.send('Target.sendMessageToTarget',{sessionId,message:JSON.stringify({id:requestId,method:'Runtime.evaluate',params:{expression:'JSON.stringify({text:document.querySelector("#remaining").textContent,focused:document.hasFocus()})',returnByValue:true}})}).catch(reject);
+ });
+ await expect.poll(async()=>(await read()).focused).toBe(true);
+ const seconds=async()=>{const {text}=await read();const m=text.match(/(\d+)m (\d+)s/);return m?Number(m[1])*60+Number(m[2]):null;};
+ await expect.poll(seconds).not.toBeNull();const start=await seconds();
+ await expect.poll(seconds,{timeout:6000}).toBeLessThan(start-2);
+ const next=await seconds();await expect.poll(seconds,{timeout:6000}).toBeLessThan(next-2);
+ await worker.evaluate(()=>{chrome.idle.queryState=async()=>'locked';});
+ await expect.poll(async()=>{const {checkpoint}=await worker.evaluate(()=>chrome.storage.session.get('checkpoint'));return checkpoint.visits.length;}).toBe(0);
+ // Let the popup display the final settled interval, then prove it stops.
+ await new Promise(resolve=>setTimeout(resolve,1200));const locked=await seconds();
+ await new Promise(resolve=>setTimeout(resolve,2200));expect(await seconds()).toBe(locked);
+ await cdp.send('Target.closeTarget',{targetId:target.targetId});
 });

@@ -21,3 +21,13 @@ test('page timer payload exposes only current-page totals and display preference
  assert.equal(JSON.stringify(timer).includes('Private name'),false);assert.equal('state' in timer,false);
  assert.equal(pageTimer(tabs[1],state,now,false).show,false);
 });
+
+test('focused toolbar popup counts its active site without bypassing idle or visibility rules',()=>{
+ const input={tabs,win:{...win,focused:false},idle:'active',beats,now,popupFocused:true};
+ assert.deepEqual(eligibleVisits(input),[{url:tabs[0].url,tabId:1}]);
+ for(const idle of ['idle','locked'])assert.deepEqual(eligibleVisits({...input,idle}),[]);
+ assert.deepEqual(eligibleVisits({...input,win:{...input.win,state:'minimized'}}),[]);
+ assert.deepEqual(eligibleVisits({...input,now:now+16000}),[]);
+ assert.deepEqual(eligibleVisits({...input,popupFocused:false}),[]);
+ assert.deepEqual(eligibleVisits({...input,tabs:tabs.map(t=>({...t,active:false}))}),[]);
+});

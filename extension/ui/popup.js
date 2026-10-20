@@ -5,7 +5,7 @@ let state,tab,busy=false,refreshing=false,groupSignature='';
 async function load(){
  if(refreshing||busy)return;refreshing=true;
  try{
- const live=await send({type:'getLiveState'});state=live.state;tab=live.tab;setLanguage(state.settings.language);
+ const live=await send({type:'getLiveState',popupFocused:document.hasFocus()});state=live.state;tab=live.tab;setLanguage(state.settings.language);
  const url=webURL(tab?.url),decision=live.decision;
  $('site').textContent=url?.hostname??t('Browser or extension page');$('remaining').textContent=duration(decision.remainingMs);
  $('host-usage').textContent=t('Today on this website: {time}',{time:duration(live.hostUsedMs??0)});
@@ -29,3 +29,5 @@ $('quick-allow').addEventListener('click',()=>change(async()=>{const url=webURL(
 $('pause').addEventListener('click',()=>change(async()=>{const settings={...state.settings,enabled:!state.settings.enabled};await mutate(state,{type:'saveSettings',settings,revision:state.revision});}));
 const timer=setInterval(()=>load().catch(e=>notice(e.message,true)),1000);addEventListener('pagehide',()=>clearInterval(timer),{once:true});
 load().catch(e=>notice(e.message,true));
+
+for(const event of ['focus','blur'])addEventListener(event,()=>load().catch(e=>notice(e.message,true)));

@@ -1,12 +1,12 @@
 import {webURL} from './patterns.js';
 import {evaluate,localDay} from './policy.js';
-export function eligibleVisits({tabs,win,idle,beats,now,trackAudio=false}){
+export function eligibleVisits({tabs,win,idle,beats,now,trackAudio=false,popupFocused=false}){
  if(idle==='locked')return [];
  return tabs.filter(tab=>{
   if(!webURL(tab.url))return false;
   if(trackAudio&&tab.audible)return true;
   const beat=beats.get(tab.id);
-  return !!(tab.active&&tab.windowId===win?.id&&win.focused&&win.state!=='minimized'&&idle==='active'&&beat&&now>=beat.at&&now-beat.at<=15000&&beat.url===tab.url);
+  return !!(tab.active&&tab.windowId===win?.id&&(win.focused||popupFocused)&&win.state!=='minimized'&&idle==='active'&&beat&&now>=beat.at&&now-beat.at<=15000&&beat.url===tab.url);
  }).map(tab=>({url:tab.url,tabId:tab.id}));
 }
 export function pageTimer(tab,state,now,running){
