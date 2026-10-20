@@ -33,3 +33,19 @@ test('same-host audible tabs accrue one shared budget and hostname duration',asy
  expect(quota).toBe(duration);expect(quota).toBeLessThan(10000);
  const persistent=await worker.evaluate(()=>chrome.storage.local.get('state'));expect(JSON.stringify(persistent)).not.toContain('/one');expect(JSON.stringify(persistent)).not.toContain('/two');
 });
+
+test('popup countdown keeps decreasing against the live website budget',async()=>{
+ await setup();
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');
+ const popup=await context.newPage();await popup.goto(base+'/ui/popup.html');
+ // A toolbar popup is not exposed in headless Chromium. Keep the real website
+ // active while exercising the actual popup document and background accounting.
+ await site.bringToFront();
+ await expect(popup.locator('#site')).toHaveText('127.0.0.1');
+ const seconds=async()=>{const text=await popup.locator('#remaining').innerText();const m=text.match(/(\d+)m (\d+)s/);return m?Number(m[1])*60+Number(m[2]):null;};
+ const start=await seconds();expect(start).not.toBeNull();
+ await expect.poll(seconds,{timeout:6000}).toBeLessThan(start-1);
+ const next=await seconds();await expect.poll(seconds,{timeout:6000}).toBeLessThan(next-1);
+ const s=await state(),used=Object.values(s.usage).reduce((n,d)=>n+(d.live??0),0);
+ expect(Math.abs((await seconds())-Math.ceil((600000-used)/1000))).toBeLessThanOrEqual(2);
+});
