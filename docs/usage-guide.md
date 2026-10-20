@@ -105,3 +105,24 @@ See [privacy](../PRIVACY.md), [architecture](architecture.md),
 [research findings](research/stayfocusd-4.6.17.md), and
 [verification record](verification.md).
 
+
+## Visual usage dashboard
+
+In Settings → Your usage, select today, the last 7 days or the last 30 days.
+All cards, charts, ranking rows and CSV exports follow the same website filter
+and search. Switch the metric between visit duration and session count.
+
+- Daily trend shows one point per local calendar date.
+- Hourly pattern sums duration in the same clock hour across the selected dates.
+  The initial view shows today's hourly pattern.
+- Website share shows the top five websites plus Other websites. The full ranking
+  and expandable chart values include every website.
+- Hover or focus a chart point for its accessible exact value; open View chart
+  values to read all data without relying on colors or a pointer.
+
+A session is a continuous eligible period for a hostname, not a page-view count.
+Hourly session counts are not stored, so session trends use daily counts. Older
+records without hourly duration remain in totals but cannot populate hourly
+charts or the busiest-hour card. A note identifies that limitation. History uses
+local calendar dates, independently of budget reset time. Optional background
+audio can make summed website duration exceed elapsed wall time.

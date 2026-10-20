@@ -1,4 +1,5 @@
 import {setLanguage,t,getLanguage} from './i18n.js';
+import {renderUsage} from './statistics.js';
 import {summarizeUsage,csvUsage} from '../core/statistics.js';
 import {DISTRACTIONS,validateSettings} from '../core/settings.js';
 import {budgetDay,localDay,activeNuclear} from '../core/policy.js';
@@ -45,15 +46,8 @@ function renderSession(){
  $('save').disabled=!!active;$('start-focus').disabled=!!active;$('cancel-focus').disabled=!pending;
 }
 function summary(){return summarizeUsage(state,{range:$('stats-range').value,filter:$('stats-filter').value,search:$('stats-search').value,now:Date.now()});}
-function renderStats(){
- const data=summary(),root=$('stats');root.replaceChildren();
- $('stats-total').textContent=t('{time} total · {count} sessions',{time:duration(data.totalMs),count:data.totalSessions});
- if(!data.rows.length)root.append(element('p',t('Nothing recorded yet. A little breathing room.'),'empty'));
- for(const {host,ms,sessions} of data.rows){const row=element('div',undefined,'stat-row');row.append(element('span',host),element('strong',duration(ms)),element('span',t('{count} sessions',{count:sessions})));root.append(row);}
- const chart=$('stats-chart');chart.replaceChildren();const max=Math.max(1,...data.series.map(d=>d.ms));
- for(const point of data.series){const bar=element('div',undefined,'usage-bar');bar.style.height=`${Math.max(2,point.ms/max*100)}%`;bar.title=`${point.label}: ${duration(point.ms)}`;bar.setAttribute('aria-label',bar.title);chart.append(bar);}
- chart.setAttribute('aria-label',t('Usage over time')+': '+data.series.map(p=>`${p.label}: ${duration(p.ms)}`).join(', '));
-}
+function renderStats(){renderUsage(summary());}
+
 function collect(){
  draft.language=$('language').value;draft.allowlist=lines($('allowlist').value);draft.schedule.days=[...$('days').querySelectorAll('input:checked')].map(e=>Number(e.value));
  draft.schedule.intervals=lines($('intervals').value).map(line=>{const parts=line.split('-');if(parts.length!==2)throw Error('Use time windows like 09:00-17:00.');return [parseTime(parts[0].trim()),parseTime(parts[1].trim(),true)];});
@@ -84,6 +78,8 @@ $('cancel-focus').addEventListener('click',()=>act(async()=>{state=await mutate(
 $('clear-stats').addEventListener('click',()=>act(async()=>{state=await mutate(state,{type:'clearStats'});renderStats();notice('Statistics cleared. Existing budgets and focus sessions are unchanged.');}));
 $('refresh-stats').addEventListener('click',()=>act(async()=>{state=await send({type:'getState'});renderStats();renderSession();notice('Usage refreshed.');}));
 $('stats-range').addEventListener('change',renderStats);
+$('stats-metric').addEventListener('change',renderStats);
+$('stats-view').addEventListener('change',renderStats);
 $('export').addEventListener('click',()=>act(async()=>{
  const saved=await send({type:'getState'}),url=URL.createObjectURL(new Blob([JSON.stringify(saved.settings,null,2)],{type:'application/json'}));
  const a=element('a');a.href=url;a.download='open-stay-focused-settings.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notice('Saved settings exported.');

@@ -49,3 +49,13 @@ test('paused settings stop quota accrual while statistics continue',()=>{
  const out=accountIntervalMany(s,{visits:visits('example.com'),from:time(),to:time()+1000});
  assert.equal(out.stats['2026-10-17']['example.com'],1000);assert.equal(out.sessionCounts['2026-10-17']['example.com'],1);assert.deepEqual(out.usage,{});
 });
+test('chart summaries expose daily sessions, hourly duration and an honest peak hour',()=>{
+ const s=initialState();s.stats={'2026-10-17':{'a.com':60000,'b.com':120000},'2026-10-16':{'a.com':30000}};
+ s.sessionCounts={'2026-10-17':{'a.com':2,'b.com':3},'2026-10-16':{'a.com':1}};
+ s.hourly={'2026-10-17':{'a.com':Array.from({length:24},(_,h)=>h===9?60000:0)}};
+ const data=summarizeUsage(s,{range:'week',now:time()});
+ assert.equal(data.daily.at(-1).sessions,5);assert.equal(data.daily.at(-2).ms,30000);
+ assert.equal(data.hourly[9].ms,60000);assert.equal(data.peakHour,9);assert.equal(data.hourlyTotalMs,60000);
+ const empty=summarizeUsage(s,{range:'today',now:time(),search:'missing'});
+ assert.equal(empty.peakHour,null);assert.equal(empty.totalSessions,0);
+});

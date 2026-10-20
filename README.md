@@ -65,8 +65,10 @@ it starts.
 
 The toolbar popup updates every second while open under normal conditions.
 Closing it stops display updates; background usage accounting continues.
-No floating timer is added to websites. Reports include hostname totals, session counts, hourly/daily charts,
-filters and search. History is retained for 30 local dates. Settings support JSON
+No floating timer is added to websites. The usage dashboard includes summary cards,
+daily trends, hourly patterns, a website-share ring and ranked percentage bars.
+Switch between duration and sessions, filter or search websites, and expand exact
+chart values. History is retained for 30 local dates. Settings support JSON
 import/export, and reports support local CSV export.
 
 ## Frequently asked questions

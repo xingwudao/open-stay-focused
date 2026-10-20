@@ -171,3 +171,25 @@ Validation: 56 unit/package tests and 7 targeted browser tests passed, including
 parent-domain/subdomain and path coverage, unmatched paths, group switching,
 new-group selection, immediate language persistence, live popup polling and the
 real native-popup countdown. Build, package and whitespace checks passed.
+
+## 2026-10-21 — Usage visualization
+
+- Reused REA module inventory/chart evidence and inspected the matching official
+  StayFocusd 4.6.17 package. Static observations and reconstruction choices:
+  `docs/research/stayfocusd-statistics-visualization.md`.
+- `npm test`: 57 passed (including new daily-session, hourly-detail and empty
+  filtered-summary assertions).
+- `npx playwright test`: 27/28 passed initially. The failed legacy accessibility
+  assertion exposed a missing chart-container accessible name; restored it.
+- After that fix and a small axis-tick deduplication, ran
+  `npx playwright test -g 'usage dashboard|live popup refresh'`: 2/2 passed.
+  The full 28-test suite was not repeated after the focused correction.
+- New integration coverage checks hourly points, percentages, metric sorting,
+  daily session totals, filters, empty state, Chinese, 375px overflow and top-five
+  plus Other aggregation. Synthetic screenshots inspected for desktop and narrow
+  layouts; no personal usage records were read or exported.
+- Final `npm run build`: 25 extension files validated.
+  `git diff --check`: passed. No new dependencies or storage schema changes.
+- No vendor populated-chart runtime parity claim. No remote CI or release run
+  for this change. The previously requested blocked-title width fix remains
+  in the working tree alongside this work.
