@@ -157,3 +157,17 @@ five accounting tests hit physical-host idle state. Normal browser fixtures now
 explicitly set active OS idle state; dedicated idle/lock tests retain their own
 controlled transitions. All five affected tests plus the native popup close test
 passed in a focused six-test rerun. Build and packaging passed.
+
+
+## 0.2.4 selected-group coverage in popup
+
+The add button uses `matchesAny` on the current URL and selected group's patterns.
+Covered pages show a disabled Already in this group label; changing the group or
+current URL recomputes membership. The mutation handler also avoids covered adds.
+New-group creation selects the resulting group before displaying the updated state.
+The selector's neutral Website group label and button states support both locales.
+
+Validation: 56 unit/package tests and 7 targeted browser tests passed, including
+parent-domain/subdomain and path coverage, unmatched paths, group switching,
+new-group selection, immediate language persistence, live popup polling and the
+real native-popup countdown. Build, package and whitespace checks passed.

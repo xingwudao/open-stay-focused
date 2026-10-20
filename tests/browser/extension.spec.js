@@ -269,3 +269,27 @@ test('language selection immediately reaches popup without saving website drafts
  await expect(popup.getByRole('button',{name:'设置',exact:true})).toBeVisible();
  await expect(page.locator('#allowlist')).toHaveValue('unsaved.example');
 });
+
+test('popup add state follows selected group coverage, paths and language',async()=>{
+ const s=await settings();s.groups=[
+  {id:'domain',name:'Domain',enabled:true,budgetMs:600000,patterns:['example.com']},
+  {id:'path',name:'Paths',enabled:true,budgetMs:600000,patterns:['example.com/work/*']},
+  {id:'other',name:'Other',enabled:true,budgetMs:600000,patterns:['other.example']}
+ ];await save(s);
+ const popup=await context.newPage();
+ await popup.addInitScript(()=>{window.fixtureTab={id:123,url:'https://sub.example.com/work/a'};const send=chrome.runtime.sendMessage.bind(chrome.runtime);chrome.runtime.sendMessage=async cmd=>{const r=await send(cmd);if(cmd.type==='getLiveState'&&r.ok)r.data.tab=window.fixtureTab;return r;};});
+ await popup.goto(base+'/ui/popup.html');
+ const add=popup.locator('#quick-add');
+ await expect(add).toHaveText('Already in this group');await expect(add).toBeDisabled();
+ await popup.locator('#target-group').selectOption('path');await expect(add).toBeDisabled();
+ await popup.evaluate(()=>{window.fixtureTab.url='https://sub.example.com/personal';});
+ await expect(add).toBeEnabled();await expect(add).toHaveText('Add to this group');
+ await popup.locator('#target-group').selectOption('domain');await expect(add).toBeDisabled();
+ await popup.locator('#target-group').selectOption('other');await expect(add).toBeEnabled();
+ await add.click();await expect(add).toBeDisabled();expect((await settings()).groups.find(g=>g.id==='other').patterns).toContain('sub.example.com');
+ await popup.locator('#target-group').selectOption('new');await expect(add).toBeEnabled();await add.click();
+ await expect(add).toBeDisabled();await expect(popup.locator('#target-group')).not.toHaveValue('new');
+ const count=(await settings()).groups.length;await popup.waitForTimeout(1200);expect((await settings()).groups.length).toBe(count);
+ await page.reload();await page.locator('#language').selectOption('zh-CN');await expect(add).toHaveText('已加入此分组');
+ await expect(popup.locator('#group-label')).toHaveText('网站分组');
+});

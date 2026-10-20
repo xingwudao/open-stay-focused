@@ -28,7 +28,7 @@ accounts or telemetry. Free and MIT licensed.
 
 ## Install
 
-1. Download `open-stay-focused-0.2.3.zip` from
+1. Download `open-stay-focused-0.2.4.zip` from
    [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest).
 2. Extract it into a folder you will keep on your computer.
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
