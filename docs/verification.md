@@ -193,3 +193,24 @@ real native-popup countdown. Build, package and whitespace checks passed.
 - No vendor populated-chart runtime parity claim. No remote CI or release run
   for this change. The previously requested blocked-title width fix remains
   in the working tree alongside this work.
+
+## 2026-10-22 — v0.2.5 SPA accounting repair
+
+- Reproduction and browser-message evidence:
+  `docs/research/spa-timing-regression.md`.
+- Red: no extension UI open, `pushState` navigation stopped persisted quota at
+  73 ms; diagnostic repeat stopped at 123 ms. Fresh-tab control passed.
+- Green: the same storage-only tests accumulated over seven seconds without any
+  popup. `replaceState`/fragment heartbeats also passed; mismatched document
+  identity was rejected.
+- `npm test`: 57/57 passed. `npm run build`: 25 files validated.
+- Full browser suite: 30/31 passed. The native-toolbar test failed after closing
+  its popup. A diagnostic isolated run also encountered native focus loss.
+  Added failure focus diagnostics and explicitly refocused the test browser after
+  closing its popup. Isolated native-toolbar retest passed (14.7 seconds).
+  No production popup-focus behavior was changed. The complete suite was not
+  rerun after that fixture-only correction.
+- Version bumped to 0.2.5 so the loaded fix can be identified. Existing installed
+  timing files matched the pre-fix repository and host permissions were granted.
+- The test fixture uses controlled idle state and a local SPA; the user's actual
+  X browsing session was not replayed. Missing historical time is not backfilled.

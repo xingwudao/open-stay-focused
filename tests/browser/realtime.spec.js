@@ -13,7 +13,10 @@ test.beforeEach(async({},testInfo)=>{
  await page.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'getState'}),s=r.data;const {challengeForLanguage}=await import('../core/settings.js');
   const saved=await chrome.runtime.sendMessage({type:'saveSettings',revision:s.revision,settings:{...s.settings,challengeEnabled:false},challenge:challengeForLanguage(s.settings.language,s.settings.challengeText)});if(!saved.ok)throw Error(saved.error);});
 });
-test.afterEach(async()=>{await context?.close();});
+test.afterEach(async({},testInfo)=>{
+ if(testInfo.status!==testInfo.expectedStatus&&worker)console.log('failed test browser focus',await worker.evaluate(async()=>({window:await chrome.windows.getLastFocused(),idle:await chrome.idle.queryState(60)})).catch(()=>null));
+ await context?.close();
+});
 async function state(){return page.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'getState'});if(!r.ok)throw Error(r.error);return r.data;});}
 async function setup(audio=false){await page.evaluate(async audio=>{const {data:s}=await chrome.runtime.sendMessage({type:'getState'});s.settings.trackAudio=audio;s.settings.groups=[{id:'live',name:'Live fixture',enabled:true,budgetMs:600000,patterns:['127.0.0.1']}];const r=await chrome.runtime.sendMessage({type:'saveSettings',settings:s.settings,revision:s.revision});if(!r.ok)throw Error(r.error);},audio);}
 test('website has no floating timer while background usage keeps accumulating',async()=>{
@@ -72,7 +75,7 @@ test('native toolbar popup keeps counting while it holds browser focus',async()=
  });
  await expect.poll(async()=>(await read()).focused).toBe(true);
  // Keep the native popup foreground on a shared desktop; focus loss is a valid pause.
- const seconds=async()=>{const view=await read();if(!view.focused)await cdp.send('Target.activateTarget',{targetId:target.targetId});const {text}=view;const m=text.match(/(\d+)m (\d+)s/);return m?Number(m[1])*60+Number(m[2]):null;};
+ const seconds=async()=>{const view=await read();if(!view.focused)console.log('native popup lost focus',view);if(!view.focused)await cdp.send('Target.activateTarget',{targetId:target.targetId});const {text}=view;const m=text.match(/(\d+)m (\d+)s/);return m?Number(m[1])*60+Number(m[2]):null;};
  await expect.poll(seconds).not.toBeNull();const start=await seconds();
  await expect.poll(seconds,{timeout:10000}).toBeLessThan(start-2);
  const next=await seconds();await expect.poll(seconds,{timeout:10000}).toBeLessThan(next-2);
@@ -82,7 +85,7 @@ test('native toolbar popup keeps counting while it holds browser focus',async()=
  await new Promise(resolve=>setTimeout(resolve,1200));const locked=await seconds();
  await new Promise(resolve=>setTimeout(resolve,2200));expect(await seconds()).toBe(locked);
  await cdp.send('Target.closeTarget',{targetId:target.targetId});
- await worker.evaluate(()=>{chrome.idle.queryState=async()=>'active';});await site.bringToFront();
+ await worker.evaluate(async()=>{chrome.idle.queryState=async()=>'active';const win=await chrome.windows.getLastFocused();await chrome.windows.update(win.id,{focused:true});});await site.bringToFront();
  const closedUsage=Object.values((await state()).usage).reduce((n,d)=>n+(d.live??0),0);
  await expect.poll(async()=>Object.values((await state()).usage).reduce((n,d)=>n+(d.live??0),0),{timeout:6000}).toBeGreaterThan(closedUsage+1000);
  await expect(site.locator('#open-stay-focused-timer')).toHaveCount(0);
@@ -99,4 +102,30 @@ test('stopped page heartbeats recover without reloading the website',async()=>{
  const start=Object.values((await state()).usage).reduce((n,d)=>n+(d.live??0),0);
  await expect.poll(async()=>Object.values((await state()).usage).reduce((n,d)=>n+(d.live??0),0),{timeout:6000}).toBeGreaterThan(start+1500);
  await expect(site.locator('#open-stay-focused-timer')).toHaveCount(0);
+});
+
+for(const scenario of ['fresh tabs','SPA navigation'])test(`without any extension UI, ${scenario} accrue persisted usage`,async()=>{
+ await setup();await page.close();
+ const a=await context.newPage();await a.goto('http://127.0.0.1:4173/one');
+ const b=await context.newPage();await b.goto('http://127.0.0.1:4173/two');await b.bringToFront();
+ if(scenario==='SPA navigation')await b.getByRole('button',{name:'SPA route'}).click();
+ // Read storage only: UI messages call sample() and would mask startup failures.
+ const persisted=()=>worker.evaluate(async()=>{const {state}=await chrome.storage.local.get('state');return Object.values(state.usage).reduce((n,d)=>n+(d.live??0),0);});
+ await expect.poll(persisted,{timeout:8000}).toBeGreaterThan(3000);
+ const before=await persisted();await a.bringToFront();
+ await expect.poll(persisted,{timeout:8000}).toBeGreaterThan(before+3000);
+ console.log(JSON.stringify({scenario,usedBeforeOpeningPopup:await persisted()}));
+});
+
+test('SPA heartbeats accept the current document but reject stale document identity',async()=>{
+ await setup();await page.close();
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/one');
+ await site.evaluate(()=>history.replaceState({},'', '/replacement#details'));
+ const tab=await worker.evaluate(async()=> (await chrome.tabs.query({})).find(t=>t.url==='http://127.0.0.1:4173/replacement#details'));
+ const heartbeat=()=>worker.evaluate(async id=>{const [result]=await chrome.scripting.executeScript({target:{tabId:id},func:()=>chrome.runtime.sendMessage({type:'heartbeat'})});return result.result;},tab.id);
+ expect((await heartbeat()).ok).toBe(true);
+ await worker.evaluate(()=>{globalThis.actualGetFrame=chrome.webNavigation.getFrame.bind(chrome.webNavigation);chrome.webNavigation.getFrame=async arg=>({...await globalThis.actualGetFrame(arg),documentId:'another-document'});});
+ expect(await heartbeat()).toEqual({ok:false,error:'Stale document.'});
+ await worker.evaluate(()=>{chrome.webNavigation.getFrame=globalThis.actualGetFrame;});
+ expect((await heartbeat()).ok).toBe(true);
 });

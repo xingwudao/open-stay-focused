@@ -100,7 +100,10 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   }
   if(sender.id!==chrome.runtime.id||sender.frameId!==0||!sender.tab?.id||!webURL(sender.url))throw Error('Untrusted message sender.');
   if(!['heartbeat','checkPage','getDistractions','getPageTimer'].includes(message?.type))throw Error('A trusted extension page is required.');
-  const tab=await chrome.tabs.get(sender.tab.id);if(sender.url!==tab.url)throw Error('Stale document.');
+  const tab=await chrome.tabs.get(sender.tab.id);
+  // SPA navigation changes tab.url but Chrome retains the sender's original URL.
+  const frame=await chrome.webNavigation.getFrame({tabId:tab.id,frameId:0});
+  if(!sender.documentId||sender.documentId!==frame?.documentId)throw Error('Stale document.');
   if(message.type==='getDistractions')return (await controller.snapshot()).settings.distractions;
   if(message.type==='heartbeat')beats.set(tab.id,{at:Date.now(),url:tab.url});
   const live=await sample();await redirect(tab,live.state);
