@@ -21,7 +21,7 @@ test('stored legacy state migrates without changing quotas or nuclear deadline',
 test('Chinese challenge uses saved language, including language-switching writes',async()=>{
  let stored=initialState();stored.settings.language='zh-CN';stored.settings.challengeEnabled=true;
  const c=createController({storage:{get:async()=>stored,set:async s=>stored=structuredClone(s)}});
- const settings={...stored.settings,language:'en'};
+ const settings={...stored.settings,language:'en',challengeEnabled:false};
  await assert.rejects(c.handle({type:'saveSettings',settings,revision:0,challenge:CHALLENGE},{trustedUI:true}),/challenge/);
  await c.handle({type:'saveSettings',settings,revision:0,challenge:challengeForLanguage('zh-CN')},{trustedUI:true});
  assert.equal((await c.snapshot()).settings.language,'en');

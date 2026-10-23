@@ -214,3 +214,24 @@ real native-popup countdown. Build, package and whitespace checks passed.
   timing files matched the pre-fix repository and host permissions were granted.
 - The test fixture uses controlled idle state and a local SPA; the user's actual
   X browsing session was not replayed. Missing historical time is not backfilled.
+
+## 2026-10-23 — v0.2.6 equivalent settings edits
+
+- Design: compare validated settings excluding group names and interface language;
+  compare group IDs and sorted rule sets to allow ordering/deduplication only.
+  All other settings remain part of equivalence. No pattern-containment inference.
+- Equivalent saves bypass challenge/confirmation and exhausted/focus locks through
+  the shared assessment path; imports use that same path. Mixed policy changes
+  retain existing checks. The focus-session Save button remains usable, with
+  English/Chinese copy explaining the narrow exception.
+- Regression tests failed before implementation for exhausted renaming and
+  renaming combined with tightening. Existing language-challenge and nuclear
+  tests now exercise actual restriction changes instead of equivalent saves.
+- `npm test`: 59/59 passed. Coverage asserts preserved usage, pending changes and
+  nuclear snapshot/deadline; rejects new group IDs and mixed relaxation.
+- Browser checks: initial targeted 4/4 passed; final targeted 6/6 passed, covering
+  exhausted rename with continuing enforcement, focus-session rename, mixed
+  relaxation rejection, challenge/import, localization and confirmation behavior.
+- `npm run build`, `npm run package` and `git diff --check`: passed.
+  Package: `dist/open-stay-focused-0.2.6.zip` (25 files).
+- Full browser suite and remote CI were not run for this focused change.

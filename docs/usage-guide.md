@@ -126,3 +126,22 @@ records without hourly duration remain in totals but cannot populate hourly
 charts or the busiest-hour card. A note identifies that limitation. History uses
 local calendar dates, independently of budget reset time. Optional background
 audio can make summed website duration exceed elapsed wall time.
+
+## Changes that do not affect restrictions (0.2.6)
+
+Group names, interface language, group ordering, and the order or duplicates of
+identical website/allowlist rules can be saved without confirmations or a typing
+challenge, including during exhausted budgets and active focus sessions. Saving
+unchanged settings is also allowed. The same checks apply to settings imports.
+
+Group IDs, budgets, enabled flags, website coverage, schedules, reset time,
+audio tracking and protection controls must remain equivalent. Renaming plus a
+restriction change is checked as one operation, so a harmless edit cannot conceal
+a relaxation. Deleting and recreating a group with a new ID is not equivalent.
+Pattern validation still normalizes syntax; this exception does not infer that
+different wildcard expressions cover the same pages. Existing consumed budgets,
+focus policy snapshots/deadlines and queued schedule changes remain intact.
+
+Tightening changes retain the existing rules and any immediate-block confirmation.
+During a focus session, only equivalent changes can be saved; the Save button
+remains available and invalid changes are rejected by the background controller.

@@ -353,3 +353,29 @@ test('usage dashboard charts agree with filters, metrics, language and narrow la
  await page.locator('#stats-chart circle').nth(9).focus();
  await expect(page.locator('#stats-chart circle').nth(9)).toBeFocused();
 });
+test('group rename saves without challenge during focus but mixed relaxation remains locked',async()=>{
+ const s=await settings();s.groups=[group(['example.com'],600000)];s.challengeEnabled=true;await save(s);
+ const challenge=await page.evaluate(async()=>{const {challengeForLanguage}=await import('../core/settings.js');return challengeForLanguage('en');});
+ await send({type:'startNuclear',mode:'blocked',minutes:5,challenge});await page.reload();
+ await expect(page.locator('#save')).toBeEnabled();
+ await page.locator('#groups').getByLabel('Name',{exact:true}).fill('Renamed during focus');
+ await page.locator('#save').click();await expect(page.getByRole('status')).toHaveText('Settings saved.');
+ await expect(page.getByRole('dialog')).not.toBeVisible();
+ expect((await settings()).groups[0].name).toBe('Renamed during focus');
+ await page.locator('#groups').getByLabel('Name',{exact:true}).fill('Mixed change');
+ await page.locator('#groups').getByLabel('Minutes per day').fill('20');await page.locator('#save').click();
+ await expect(page.getByRole('alert')).toContainText('nuclear session');
+ expect((await settings()).groups[0].name).toBe('Renamed during focus');
+ await page.locator('#language').selectOption('zh-CN');
+ await expect(page.locator('#session-banner')).toContainText('仅可保存分组改名');
+});
+test('exhausted group can be renamed in settings without restoring its budget',async()=>{
+ const s=await settings();s.groups=[group(['127.0.0.1'],2000)];s.challengeEnabled=true;await save(s);
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
+ await expect(site).toHaveURL(/ui\/blocked.html/,{timeout:20000});
+ const before=await send({type:'getState'});await page.bringToFront();await page.reload();
+ await page.locator('#groups').getByLabel('Name',{exact:true}).fill('Still blocked');await page.locator('#save').click();
+ await expect(page.getByRole('status')).toHaveText('Settings saved.');await expect(page.getByRole('dialog')).not.toBeVisible();
+ const after=await send({type:'getState'});expect(after.usage).toEqual(before.usage);expect(after.settings.groups[0].name).toBe('Still blocked');
+ await site.goto('http://127.0.0.1:4173/');await expect(site).toHaveURL(/ui\/blocked.html/);
+});

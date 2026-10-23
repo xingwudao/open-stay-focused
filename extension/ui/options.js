@@ -40,10 +40,10 @@ function render(){
 function renderSession(){
  const n=state.nuclear,active=activeNuclear(state,Date.now()),pending=n&&Date.now()<n.startAt;
  $('session-banner').hidden=!active&&!pending;
- if(active||pending)$('session-banner').textContent=active?t('Focus session active · {time} remaining. Settings are locked.',{time:duration(n.endAt-Date.now())}):t('Focus session scheduled for {time}.',{time:new Date(n.startAt).toLocaleString(getLanguage())});
+ if(active||pending)$('session-banner').textContent=active?t('Focus session active · {time} remaining. Only equivalent changes, such as renaming groups, can be saved.',{time:duration(n.endAt-Date.now())}):t('Focus session scheduled for {time}.',{time:new Date(n.startAt).toLocaleString(getLanguage())});
  $('pause').hidden=state.settings.hidePause;$('pause').textContent=t(state.settings.enabled?'Pause restrictions':'Resume restrictions');
  const pendingText=[];if(state.pending?.intervals)pendingText.push(t('Time windows: {effective}. Pending: {value}, effective {time}.',{effective:state.settings.schedule.intervals.map(([a,b])=>`${timeText(a)}–${timeText(b)}`).join(', '),value:state.pending.intervals.value.map(([a,b])=>`${timeText(a)}–${timeText(b)}`).join(', '),time:new Date(state.pending.intervals.applyAt).toLocaleString(getLanguage())}));if(state.pending?.resetMinute)pendingText.push(t('Daily reset: {effective}. Pending: {value}, effective {time}.',{effective:timeText(state.settings.resetMinute),value:timeText(state.pending.resetMinute.value),time:new Date(state.pending.resetMinute.applyAt).toLocaleString(getLanguage())}));$('pending-banner').hidden=!pendingText.length;$('pending-banner').textContent=pendingText.join(' ');
- $('save').disabled=!!active;$('start-focus').disabled=!!active;$('cancel-focus').disabled=!pending;
+ $('start-focus').disabled=!!active;$('cancel-focus').disabled=!pending;
 }
 function summary(){return summarizeUsage(state,{range:$('stats-range').value,filter:$('stats-filter').value,search:$('stats-search').value,now:Date.now()});}
 function renderStats(){renderUsage(summary());}

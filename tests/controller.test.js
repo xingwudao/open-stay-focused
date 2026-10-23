@@ -50,7 +50,7 @@ test('nuclear snapshot survives restart, blocks mutation and stats clear preserv
  await c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()});f.advance(5000);
  await c.tick({url:'https://example.com',tabId:1,eligible:false,now:f.now()});
  await c.handle({type:'startNuclear',mode:'blocked',minutes:1,startAt:f.now()},trusted);
- for(const cmd of [{type:'cancelScheduledNuclear'},{type:'saveSettings',settings:(await c.snapshot()).settings,revision:0},{type:'startNuclear',mode:'all',minutes:1}])await assert.rejects(c.handle(cmd,trusted),/active/i);
+ for(const cmd of [{type:'cancelScheduledNuclear'},{type:'saveSettings',settings:{...(await c.snapshot()).settings,trackAudio:true},revision:0},{type:'startNuclear',mode:'all',minutes:1}])await assert.rejects(c.handle(cmd,trusted),/active/i);
  await c.handle({type:'clearStats'},trusted);
  const s=await createController({storage:f.storage,clock:f.now}).snapshot();
  assert.deepEqual(s.stats,{});assert.equal(s.usage['2026-10-17'].g,5000);assert.equal(s.nuclear.mode,'blocked');
