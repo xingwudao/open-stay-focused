@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Open Stay Focused",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "minimum_chrome_version": "120",
   "description": "Local, open-source website budgets, focus sessions and distraction controls. Your browsing data stays on your device.",
   "permissions": ["scripting", "storage", "tabs", "alarms", "idle", "webNavigation"],
@@ -9,6 +9,6 @@
   "background": {"service_worker": "background.js", "type": "module"},
   "action": {"default_popup": "ui/popup.html", "default_title": "Open Stay Focused"},
   "options_ui": {"page": "ui/options.html", "open_in_tab": true},
-  "content_scripts": [{"matches": ["http://*/*", "https://*/*"], "js": ["distractions.js", "content.js"], "run_at": "document_start"}],
+  "content_scripts": [{"matches": ["http://*/*", "https://*/*"], "js": ["distractions.js", "companion.js", "content.js"], "run_at": "document_start"}],
   "icons": {"16":"icons/16.png", "48":"icons/48.png", "128":"icons/128.png"}
 }

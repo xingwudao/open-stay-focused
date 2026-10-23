@@ -104,7 +104,7 @@ test('popup unsupported-state handling and nuclear UI commitment are usable',asy
  await page.getByLabel('I understand an active session cannot be canceled.').check();
  await page.getByRole('button',{name:'Commit to focus'}).click();
  await expect(page.locator('#session-banner')).toContainText('active');
- await expect(page.getByRole('button',{name:'Save settings',exact:true})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Save settings',exact:true})).toBeEnabled();
 });
 test('browser restart retains nuclear deadline and discards transient browsing checkpoint',async()=>{
  const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');
@@ -396,4 +396,51 @@ test('settings footer uses the installed version in both languages',async()=>{
  await page.locator('#language').selectOption('en');
  await expect(page.locator('footer')).toContainText('Open source. Local by design.');
  await expect(page.locator('footer #version')).toHaveText('v'+version);
+});
+
+test('otter milestones run without popup, persist across navigation, and stay on blocked page',async()=>{
+ const s=await settings();s.groups=[group(['127.0.0.1'],20000)];s.companionSound=false;await save(s);
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
+ const pet=site.locator('#open-stay-focused-companion');
+ await expect(pet).toContainText('Half your budget used',{timeout:16000});
+ await expect(pet).toHaveCount(0,{timeout:4000});
+ await site.reload();
+ await expect(pet).toContainText('80% used',{timeout:12000});
+ await expect(site).toHaveURL(/ui\/blocked.html/,{timeout:12000});
+ await expect(pet).toContainText('All done for today');
+ await site.waitForTimeout(2500);await expect(pet).toBeAttached();
+ await site.reload();await expect(pet).toContainText('All done for today');
+ await pet.getByRole('button',{name:'Dismiss otter reminder'}).first().click();
+ await site.waitForTimeout(1500);await expect(pet).toHaveCount(0);
+ const ledger=await worker.evaluate(async()=> (await chrome.storage.local.get('companionLedger')).companionLedger);
+ expect(ledger.groups.test).toBe(100);
+});
+test('otter preview is localized, dismissible, reduced-motion aware and settings bypass challenge',async()=>{
+ const s=await settings();s.challengeEnabled=true;await save(s);await page.reload();
+ await page.locator('#language').selectOption('zh-CN');
+ await expect(page.getByRole('button',{name:'预览水獭（10 秒）'})).toBeVisible();
+ await page.locator('#companion-sound').uncheck();
+ await page.getByRole('button',{name:'预览水獭（10 秒）'}).click();
+ const head=page.locator('#open-stay-focused-companion').locator('.head');
+ const first=await head.evaluate(el=>getComputedStyle(el).transform);
+ await expect.poll(()=>head.evaluate(el=>getComputedStyle(el).transform)).not.toBe(first);
+ expect(await page.locator('#open-stay-focused-companion').locator('.foot').first().evaluate(el=>el.getAnimations().length)).toBe(1);
+ await page.emulateMedia({reducedMotion:'reduce'});
+ await page.getByRole('button',{name:'预览水獭（10 秒）'}).click();
+ const pet=page.locator('#open-stay-focused-companion');
+ await expect(pet).toContainText('额度已用一半');
+ expect(await pet.locator('.pet').evaluate(el=>el.getAnimations({subtree:true}).length)).toBe(0);
+ await pet.getByRole('button',{name:'收起水獭提醒'}).first().click();await expect(pet).toHaveCount(0);
+ await page.locator('#companion-enabled').uncheck();await page.locator('#save').click();
+ await expect(page.getByRole('dialog')).not.toBeVisible();
+ await expect.poll(async()=> (await settings()).companionEnabled).toBe(false);
+});
+test('otter preview plays one short synthesized sound after a user click and releases audio',async()=>{
+ await page.evaluate(()=>{const Native=AudioContext;globalThis.AudioContext=class extends Native{constructor(...args){super(...args);globalThis.testOtterAudio=this;}};});
+ await page.getByRole('button',{name:'Preview otter (10 seconds)'}).click();
+ expect(await page.evaluate(()=>testOtterAudio.state)).toBe('running');
+ await expect.poll(()=>page.evaluate(()=>testOtterAudio.state)).toBe('closed');
+ await page.locator('#companion-sound').uncheck();
+ await page.getByRole('button',{name:'Preview otter (10 seconds)'}).click();
+ expect(await page.evaluate(()=>testOtterAudio.state)).toBe('closed');
 });

@@ -1,5 +1,12 @@
 // Translate only original interface nodes. User-authored names and URLs stay intact.
 const zh = {
+"A gentle otter reminder":"水獭的温柔提醒",
+"Show the otter at budget milestones":"在额度提醒节点显示水獭",
+"Play a soft chirp on arrival":"水獭出场时轻叫一声",
+"At 50% used, the otter wanders for 5% of the total budget; at 80%, for 10%. At 100%, it stays on the blocked page. Click it to dismiss. Each milestone appears once per group per budget day.":"用到 50% 时，游走总额度的 5%；用到 80% 时，游走总额度的 10%；用完 100% 后，在封锁页持续游走。点击水獭即可收起。每个分组的每个额度周期，各节点只提醒一次。",
+"Sound is synthesized and plays once. Chrome may require a click first. Reduced motion uses a still otter. Reminder preferences never require a challenge.":"叫声为合成音，每次出场只播放一次。Chrome 可能要求先点击才能发声。开启系统减少动态效果时，水獭静止显示。修改提醒偏好无需挑战。",
+"Preview otter (10 seconds)":"预览水獭（10 秒）",
+
 "All figures below follow the selected range and website filters.":"以下数据均按所选日期范围和网站筛选条件统计。",
 "Metric":"统计指标",
 "Visit duration":"浏览时长",

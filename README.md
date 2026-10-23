@@ -21,6 +21,9 @@ accounts or telemetry. Free and MIT licensed.
   challenges and delayed settings changes add friction when you try to relax rules.
 - **See where your time goes.** Check the live focus timer, current-site usage,
   and local screen time reports for today, 7 days or 30 days. Export totals as CSV.
+- **Gentle animated budget reminders.** An optional otter nods, steps and sways
+  at 50%, 80% and exhaustion. It wanders for 5% / 10% of the total budget,
+  then stays on the blocked page. Dismiss it with a click; sound is optional.
 - **Reduce distractions inside a site.** Hide YouTube Shorts, recommendations or
   comments, plus selected Reels links, X trends and TikTok recommendations.
 - **Use English or 简体中文.** Switch the interface language without clearing usage

@@ -1,5 +1,6 @@
+import {companionReminder,browsingReminderGroups} from './core/companion.js';
 import {createController} from './controller.js';
-import {evaluate,localDay} from './core/policy.js';
+import {evaluate,localDay,budgetDay} from './core/policy.js';
 import {webURL} from './core/patterns.js';
 import {eligibleVisits,pageTimer} from './core/tracking.js';
 const UI_PATHS=new Set(['/ui/options.html','/ui/popup.html','/ui/blocked.html']);
@@ -27,7 +28,17 @@ function trustedUI(sender){
 async function redirect(tab,state){
  if(!tab?.id||!webURL(tab.url))return;
  const decision=evaluate(tab.url,Date.now(),state);
- if(decision.blocked)try{await chrome.tabs.update(tab.id,{url:chrome.runtime.getURL(`ui/blocked.html?reason=${decision.reason}`)});}catch{/* tab closed */}
+ if(decision.blocked)try{
+  const query=new URLSearchParams({reason:decision.reason});
+  if(decision.reason==='quota'){query.set('day',budgetDay(Date.now(),state.settings.resetMinute));for(const id of decision.groupIds)query.append('group',id);}
+  await chrome.tabs.update(tab.id,{url:chrome.runtime.getURL(`ui/blocked.html?${query}`)});}catch{/* tab closed */}
+}
+async function claimCompanion(state,groupIds,stage){
+ if(!state.settings.companionEnabled)return null;
+ const {companionLedger}=await chrome.storage.local.get('companionLedger');
+ const result=companionReminder(state,Date.now(),companionLedger,groupIds,stage);
+ if(result.reminder&&JSON.stringify(result.ledger)!==JSON.stringify(companionLedger))await chrome.storage.local.set({companionLedger:result.ledger});
+ return result.reminder;
 }
 function setTicker(active){
  if(active&&!ticker)ticker=setInterval(()=>{
@@ -61,7 +72,7 @@ function recoverPage(tab,now){
  injectionAttempts.set(tab.id,{url:tab.url,at:now});
  // Reloaded extensions leave existing tabs with invalidated content scripts.
  // Reattach only our declared scripts, using the already-granted host access.
- void chrome.scripting.executeScript({target:{tabId:tab.id},files:['distractions.js','content.js']}).catch(()=>{});
+ void chrome.scripting.executeScript({target:{tabId:tab.id},files:['distractions.js','companion.js','content.js']}).catch(()=>{});
 }
 async function sample(){
  const now=Date.now(),before=await controller.snapshot();
@@ -86,6 +97,15 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   if(trustedUI(sender)) {
    await rememberPopupFocus(message,sender);
    const live=await sample();
+   if(message.type==='getCompanion'){
+    if(!sender.tab?.id||new URL(sender.url).pathname!=='/ui/blocked.html')throw Error('A blocked page is required.');
+    const query=new URL(sender.url).searchParams;
+    const win=await chrome.windows.getLastFocused();
+    const visible=sender.tab.active&&sender.tab.windowId===win.id&&win.focused;
+    const reminder=visible&&query.get('reason')==='quota'&&query.get('day')===budgetDay(Date.now(),live.state.settings.resetMinute)
+      ?await claimCompanion(live.state,query.getAll('group'),'blocked'):null;
+    return {reminder,enabled:live.state.settings.companionEnabled,sound:live.state.settings.companionSound};
+   }
    if(message.type==='getLiveState'){
     const host=webURL(live.tab?.url)?.hostname;
     return {state:cleanState(live.state),tab:live.tab?{id:live.tab.id,url:live.tab.url}:null,
@@ -107,7 +127,11 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   if(message.type==='getDistractions')return (await controller.snapshot()).settings.distractions;
   if(message.type==='heartbeat')beats.set(tab.id,{at:Date.now(),url:tab.url});
   const live=await sample();await redirect(tab,live.state);
-  return pageTimer(tab,live.state,Date.now(),live.visits.some(v=>v.tabId===tab.id));
+  const timer=pageTimer(tab,live.state,Date.now(),live.visits.some(v=>v.tabId===tab.id));
+  const win=await chrome.windows.getLastFocused();
+  const foreground=tab.active&&win.focused&&tab.windowId===win.id&&timer.running;
+  return {...timer,companionEnabled:live.state.settings.companionEnabled,companionSound:live.state.settings.companionSound,
+   reminder:message.type==='heartbeat'&&foreground?await claimCompanion(live.state,browsingReminderGroups(tab.url,live.state,Date.now()),'browsing'):null};
  }).then(data=>respond({ok:true,data}),error=>respond({ok:false,error:error.message}));return true;
 });
 chrome.tabs.onActivated.addListener(schedule);

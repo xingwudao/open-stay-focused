@@ -235,3 +235,29 @@ real native-popup countdown. Build, package and whitespace checks passed.
 - `npm run build`, `npm run package` and `git diff --check`: passed.
   Package: `dist/open-stay-focused-0.2.6.zip` (25 files).
 - Full browser suite and remote CI were not run for this focused change.
+
+## 2026-10-23 — v0.3.0 animated otter reminders
+
+- `npm test`: 63/63 passed, including exact 50%/80% durations, shared-group
+  thresholds, ledger reload/reset, overlapping-group coalescing, old settings
+  migration and non-restrictive preference edits during nuclear sessions.
+- Initial full `npx playwright test`: 36/37 passed. One pre-existing assertion
+  still required Save settings to be disabled in a nuclear session. Updated it
+  to the previously approved behavior (equivalent edits remain saveable).
+- Final focused `npx playwright test tests/browser/extension.spec.js -g
+  'otter|popup unsupported-state'`: 4/4 passed. Covers the corrected assertion,
+  foreground thresholds without any popup, expiry, quota-page persistence,
+  dismissal, Chinese controls, actual changing head transform / foot animation,
+  no subtree animations under reduced motion, and a running-then-closed audio
+  context after a user click. Muting creates no replacement audio context.
+- Full regression also covered SPA timing, recovery, native toolbar popup,
+  statistics, settings protections, and private-storage isolation. The entire
+  suite was not rerun after the focused fixes; only affected tests were rerun.
+- `npm run build`, `npm run package`, `git diff --check`: passed.
+  Package: `dist/open-stay-focused-0.3.0.zip`, 27 extension files.
+- Visually inspected the rendered Chinese otter card in isolated Chromium.
+  No personal Chrome extension runtime was automated; real speaker output and
+  arbitrary websites' fullscreen/top-layer overlays were not manually verified.
+- Browser autoplay may silence the synthesized chirp. The visual reminder still
+  runs; an explicit Play chirp button provides a user-gesture fallback. No
+  suspended sound is queued for later playback.

@@ -35,7 +35,7 @@ function render(){
  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach((name,day)=>{const l=element('label',t(name),'day');const c=element('input');c.type='checkbox';c.value=day;c.checked=draft.schedule.days.includes(day);l.prepend(c);$('days').append(l);});
  $('intervals').value=draft.schedule.intervals.map(([a,b])=>`${timeText(a)}-${timeText(b)}`).join('\n');$('reset').value=timeText(draft.resetMinute);$('challenge-enabled').checked=draft.challengeEnabled;
  $('toggles').replaceChildren();DISTRACTIONS.forEach((key,i)=>{const l=element('label',t(toggleNames[i]),'check'),c=element('input');c.type='checkbox';c.dataset.key=key;c.checked=draft.distractions[key];l.prepend(c);$('toggles').append(l);});
- for(const [id,key] of [['track-audio','trackAudio'],['hide-pause','hidePause'],['hide-quick-allow','hideQuickAllow']])$(id).checked=draft[key];$('challenge-text').value=draft.challengeText??'';
+ for(const [id,key] of [['companion-enabled','companionEnabled'],['companion-sound','companionSound'],['track-audio','trackAudio'],['hide-pause','hidePause'],['hide-quick-allow','hideQuickAllow']])$(id).checked=draft[key];$('challenge-text').value=draft.challengeText??'';
  renderSession();renderStats();
 }
 function renderSession(){
@@ -53,7 +53,7 @@ function collect(){
  draft.language=$('language').value;draft.allowlist=lines($('allowlist').value);draft.schedule.days=[...$('days').querySelectorAll('input:checked')].map(e=>Number(e.value));
  draft.schedule.intervals=lines($('intervals').value).map(line=>{const parts=line.split('-');if(parts.length!==2)throw Error('Use time windows like 09:00-17:00.');return [parseTime(parts[0].trim()),parseTime(parts[1].trim(),true)];});
  draft.resetMinute=parseTime($('reset').value);draft.challengeEnabled=$('challenge-enabled').checked;draft.challengeText=$('challenge-text').value;
- for(const [id,key] of [['track-audio','trackAudio'],['hide-pause','hidePause'],['hide-quick-allow','hideQuickAllow']])draft[key]=$(id).checked;
+ for(const [id,key] of [['companion-enabled','companionEnabled'],['companion-sound','companionSound'],['track-audio','trackAudio'],['hide-pause','hidePause'],['hide-quick-allow','hideQuickAllow']])draft[key]=$(id).checked;
  for(const c of $('toggles').querySelectorAll('input'))draft.distractions[c.dataset.key]=c.checked;
  return validateSettings(draft);
 }
@@ -98,3 +98,5 @@ $('pause').addEventListener('click',()=>act(async()=>{state=await mutate(state,{
 async function refresh(){if(!state||refreshing||acting)return;refreshing=true;try{const live=await send({type:'getLiveState'});state=live.state;renderSession();refreshPills();renderStats();}catch(e){notice(e.message,true);}finally{refreshing=false;}}
 const liveTimer=setInterval(refresh,1000);addEventListener('pagehide',()=>clearInterval(liveTimer),{once:true});
 act(async()=>{state=await send({type:'getState'});render();});
+
+$('preview-companion').addEventListener('click',()=>OpenStayCompanion.show({level:50,groupName:t('A gentle otter reminder'),language:$('language').value,sound:$('companion-sound').checked,durationMs:10000}));
