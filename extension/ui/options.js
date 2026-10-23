@@ -4,6 +4,7 @@ import {summarizeUsage,csvUsage} from '../core/statistics.js';
 import {DISTRACTIONS,validateSettings} from '../core/settings.js';
 import {budgetDay,localDay,activeNuclear} from '../core/policy.js';
 import {$,send,duration,notice,clearNotice,challengeIfNeeded,mutate,element} from './shared.js';
+$('version').textContent='v'+chrome.runtime.getManifest().version;
 let state,draft,draftRevision,refreshing=false,acting=false;
 const lines=value=>value.split('\n').map(x=>x.trim()).filter(Boolean);
 const timeText=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;

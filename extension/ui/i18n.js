@@ -73,7 +73,7 @@ const zh = {
  "{count} sessions":"{count} 次会话",
  "Time windows: {effective}. Pending: {value}, effective {time}.":"当前时段：{effective}。待生效：{value}，生效时间：{time}。",
  "Daily reset: {effective}. Pending: {value}, effective {time}.":"当前重置时间：{effective}。待生效：{value}，生效时间：{time}。",
- "Open source. Local by design. v0.2.0":"开源。本地运行。v0.2.0",
+ "Open source. Local by design.":"开源。本地运行。",
 
  'Open Stay Focused · Your attention':'Open Stay Focused · 你的注意力',
  'A little less noise.':'少一点干扰。', 'Settings sections':'设置分类',

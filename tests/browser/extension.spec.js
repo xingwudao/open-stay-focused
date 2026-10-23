@@ -379,3 +379,21 @@ test('exhausted group can be renamed in settings without restoring its budget',a
  const after=await send({type:'getState'});expect(after.usage).toEqual(before.usage);expect(after.settings.groups[0].name).toBe('Still blocked');
  await site.goto('http://127.0.0.1:4173/');await expect(site).toHaveURL(/ui\/blocked.html/);
 });
+test('enabling Shorts alone bypasses typing while disabling it still requires challenge',async()=>{
+ const s=await settings();s.challengeEnabled=true;s.language='zh-CN';await save(s);await page.reload();
+ await page.getByLabel('YouTube · 短视频',{exact:true}).check();await page.locator('#save').click();
+ await expect(page.getByRole('status')).toHaveText('设置已保存。');await expect(page.getByRole('dialog')).not.toBeVisible();
+ expect((await settings()).distractions.youtubeShorts).toBe(true);
+ await page.getByLabel('YouTube · 短视频',{exact:true}).uncheck();await page.locator('#save').click();
+ await expect(page.getByRole('dialog')).toBeVisible();expect((await settings()).distractions.youtubeShorts).toBe(true);
+});
+test('settings footer uses the installed version in both languages',async()=>{
+ const version=await page.evaluate(()=>chrome.runtime.getManifest().version);
+ await expect(page.locator('footer #version')).toHaveText('v'+version);
+ await page.locator('#language').selectOption('zh-CN');
+ await expect(page.locator('footer')).toContainText('开源。本地运行。');
+ await expect(page.locator('footer #version')).toHaveText('v'+version);
+ await page.locator('#language').selectOption('en');
+ await expect(page.locator('footer')).toContainText('Open source. Local by design.');
+ await expect(page.locator('footer #version')).toHaveText('v'+version);
+});
