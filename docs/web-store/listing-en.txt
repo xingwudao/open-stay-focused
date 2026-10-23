@@ -1,0 +1,28 @@
+Open Stay Focused is a free, open-source website blocker and screen-time tool that helps you spend less time on distracting websites. Your settings and browsing statistics stay on your device. No account, subscription or cloud sync is required.
+
+SET ONE SHARED BUDGET
+Put distracting sites in a group and give the entire group a daily allowance. Time spent on any site in that group uses the same budget. Use separate groups when you want separate allowances. Add allowed pages and choose active days, time windows and your daily reset time.
+
+SEE WHERE YOUR TIME GOES
+Track foreground browsing automatically without opening the extension popup. Open the toolbar popup for a live countdown and today's time on the current site. Optional background-audio tracking is available. Local reports show daily and hourly browsing time, website shares, rankings and session counts. Export usage as CSV.
+
+MAKE YOUR BOUNDARIES STICK
+Start a fixed focus session, or enable typing challenges and extra confirmations before relaxing limits. Exhausted budgets cannot be loosened during active hours. Renaming a group, switching language and changing reminder preferences do not require a challenge when restrictions stay the same.
+
+GET A GENTLE REMINDER
+An optional animated otter appears at budget milestones. At 50% used, it wanders for 5% of your total budget; at 80%, for 10%. Once the allowance is exhausted, it stays on the blocked page. Click it to dismiss. Sound is optional and may require a user click because of Chrome's autoplay policy. Reduced-motion preferences are respected.
+
+REDUCE IN-PAGE DISTRACTIONS
+Optionally hide selected elements such as YouTube Shorts, recommendations and comments, Instagram/Facebook Reels links, X trending topics and TikTok recommendations. These controls depend on website layouts and may need updates when sites change.
+
+LOCAL BY DESIGN
+The extension processes current URLs, active/idle state, time and sessions locally to provide budgets and reports. Persistent usage statistics store hostnames and totals rather than visited paths or page contents, and retain 30 local dates. A transient session checkpoint can include URLs. User-entered rules may include URL paths. No browsing data is sent to the developer; no analytics SDK or remote code is included.
+
+English and Simplified Chinese interfaces are included. Source code and original artwork are MIT licensed.
+
+Please note: this is a self-control tool, not parental control or a firewall. You can bypass it by disabling/uninstalling the extension or editing local storage. Blocking redirects a tab after navigation, so a page may briefly appear. Chrome-protected pages cannot be monitored. Incognito access requires separate permission from you. Clearing statistics does not restore budgets. Screenshots use illustrative local data.
+
+Source and support: https://github.com/xingwudao/open-stay-focused
+Privacy policy: https://github.com/xingwudao/open-stay-focused/blob/main/PRIVACY.md
+
+Independent project; not affiliated with StayFocusd or Sensor Tower.
