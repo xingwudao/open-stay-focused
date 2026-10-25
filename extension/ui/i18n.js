@@ -1,5 +1,6 @@
 // Translate only original interface nodes. User-authored names and URLs stay intact.
 const zh = {
+'Budgets reset at this fixed local time, not when sleep is detected. New installations default to 03:00: crossing midnight does not renew the allowance, but reaching 03:00 does, even if you are still awake. Choose a later time if needed. Statistics still follow calendar dates; history is not erased.':'额度在这个固定的本地时间重置，不检测睡眠。新安装默认 03:00：跨过午夜不会恢复额度，但到了 03:00 即会恢复，即使你还没睡。经常熬夜可设置更晚的时间。统计仍按自然日展示，历史记录不会清空。',
 "Local files":"本地文件",
 "All websites and local files":"全部网站和本地文件",
 "Today reading local files: {time}":"今日本地文件阅读：{time}",

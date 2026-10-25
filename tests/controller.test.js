@@ -94,3 +94,14 @@ test('language preference saves independently without changing restrictions or a
  await assert.rejects(f.controller.handle({type:'setLanguage',language:'bad',revision:after.revision},trusted),/language/);
  await assert.rejects(f.controller.handle({type:'setLanguage',language:'en',revision:after.revision},{}),/trusted/);
 });
+
+test('restart before and after the fixed reset retains history without charging offline time',async()=>{
+ const f=setup();let raw=await f.storage.get();raw.settings.resetMinute=180;raw.usage={'2026-10-17':{g:10000}};raw.stats={'2026-10-17':{'example.com':10000}};await f.storage.set(raw);
+ f.advance(new Date('2026-10-18T02:59:59').getTime()-f.now());
+ let c=createController({storage:f.storage,clock:f.now});
+ assert.equal((await c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()})).blocked,true);
+ f.advance(8*3600000);c=createController({storage:f.storage,clock:f.now});
+ const decision=await c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()});
+ assert.equal(decision.blocked,false);assert.equal(decision.remainingMs,10000);
+ const after=await c.snapshot();assert.deepEqual(after.usage,raw.usage);assert.deepEqual(after.stats,raw.stats);
+});

@@ -49,7 +49,7 @@ test('allowlist and overlapping groups; all nuclear priorities and expiry',()=>{
  assert.equal(evaluate('https://other.com',now,s).blocked,false);
 });
 test('accounting accrues all groups, splits midnight, preserves separate stats',()=>{
- const s=state(); s.settings.groups.push(group('g2'));
+ const s=state(); s.settings.resetMinute=0; s.settings.groups.push(group('g2'));
  const r=accountInterval(s,{url:'https://example.com/private?q=secret',from:time('2026-10-17T23:59:55'),to:time('2026-10-18T00:00:05'),eligible:true});
  assert.deepEqual(r.usage,{'2026-10-17':{g:5000,g2:5000},'2026-10-18':{g:5000,g2:5000}});
  assert.equal(r.stats['2026-10-18']['example.com'],5000);
@@ -100,4 +100,20 @@ test('wildcard patterns match literal stars in URL paths and enforce quota',()=>
  assert.equal(matchesPattern('https://example.com/*xxa','example.com/*a'),true);
  const s=state();s.settings.groups[0].patterns=['example.com/work/*'];s.settings.groups[0].budgetMs=0;
  assert.equal(evaluate('https://example.com/work/*anything',time('2026-10-17T12:00:00'),s).blocked,true);
+});
+
+test('default 03:00 budget survives midnight while statistics use calendar dates',()=>{
+ const s=state();assert.equal(s.settings.resetMinute,180);
+ const r=accountInterval(s,{url:'https://example.com',from:time('2026-10-17T23:59:55'),to:time('2026-10-18T00:00:05'),eligible:true});
+ assert.deepEqual(r.usage,{'2026-10-17':{g:10000}});
+ assert.equal(r.stats['2026-10-17']['example.com'],5000);
+ assert.equal(r.stats['2026-10-18']['example.com'],5000);
+ for(const at of ['2026-10-18T00:00:05','2026-10-18T02:59:59'])assert.equal(evaluate('https://example.com',time(at),r).blocked,true);
+ assert.equal(evaluate('https://example.com',time('2026-10-18T03:00:00'),r).remainingMs,10000);
+});
+test('continuous browsing splits at 03:00 and preserves saved reset preferences',()=>{
+ const s=state();const r=accountInterval(s,{url:'https://example.com',from:time('2026-10-18T02:59:55'),to:time('2026-10-18T03:00:05'),eligible:true});
+ assert.deepEqual(r.usage,{'2026-10-17':{g:5000},'2026-10-18':{g:5000}});
+ assert.equal(r.stats['2026-10-18']['example.com'],10000);
+ for(const resetMinute of [0,180,300,1439])assert.equal(validateSettings({...s.settings,resetMinute}).resetMinute,resetMinute);
 });

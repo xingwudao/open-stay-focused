@@ -58,6 +58,13 @@ use the saved language. Existing installations default to English.
 
 ## Website limits, focus sessions and local reports
 
+New installations reset website allowances at 03:00 local time. Midnight does not
+renew the allowance; 03:00 does, even if you are still awake. This is a fixed
+schedule, not sleep detection. Choose a later reset under Active hours if needed.
+Existing installations keep their saved time (including 00:00); changes take
+effect at the same local time the next day. Statistics remain grouped by calendar
+date and history is not cleared.
+
 Add domain or page-path rules to a group, such as social media or entertainment.
 Each group shares one daily allowance across its matching sites. Allowlisted pages
 consume no group budget. Regular limits apply only during your active hours;
