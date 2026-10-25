@@ -5,6 +5,8 @@ import {matchesAny} from './patterns.js';
 // hostname; filters intentionally classify its root URL using the saved rules.
 function matchesFilter(host,filter,settings){
   if(filter==='all')return true;
+  if(filter==='local')return host==='file://';
+  if(host==='file://')return false;
   const url=`https://${host}/`,allowed=matchesAny(url,settings.allowlist);
   if(filter==='allowed')return allowed;
   return !allowed&&settings.groups.some(g=>g.enabled&&matchesAny(url,g.patterns));
@@ -15,7 +17,7 @@ export function summarizeUsage(state,{range='today',now=Date.now(),filter='all',
   const found=new Map(),hourly=Array(24).fill(0),daily=new Map(days.map(day=>[day,{label:day,ms:0,sessions:0}])),query=search.trim().toLowerCase();
   for(const day of days){const stats=state.stats?.[day]??{},counts=state.sessionCounts?.[day]??{};
     for(const host of new Set([...Object.keys(stats),...Object.keys(counts)])){
-      if(!host.toLowerCase().includes(query)||!matchesFilter(host,filter,state.settings))continue;
+      if(!(host==='file://'?'file:// local files 本地文件':host.toLowerCase()).includes(query)||!matchesFilter(host,filter,state.settings))continue;
       const ms=Number.isFinite(stats[host])?Math.max(0,stats[host]):0,sessions=Number.isFinite(counts[host])?Math.max(0,counts[host]):0;
       const row=found.get(host)??{host,ms:0,sessions:0};row.ms+=ms;row.sessions+=sessions;found.set(host,row);daily.get(day).ms+=ms;daily.get(day).sessions+=sessions;
       const values=state.hourly?.[day]?.[host];if(Array.isArray(values))for(let h=0;h<24;h++)if(Number.isFinite(values[h]))hourly[h]+=Math.max(0,values[h]);

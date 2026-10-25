@@ -34,3 +34,8 @@ export function matchesPattern(value, pattern) {
   return j===glob.length;
 }
 export const matchesAny = (url, patterns) => patterns.some(p => matchesPattern(url, p));
+
+export function isLocalFile(value){
+  try{return new URL(value).protocol==='file:';}catch{return false;}
+}
+export function usageHost(value){return isLocalFile(value)?'file://':webURL(value)?.hostname;}

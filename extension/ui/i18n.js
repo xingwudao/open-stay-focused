@@ -1,5 +1,12 @@
 // Translate only original interface nodes. User-authored names and URLs stay intact.
 const zh = {
+"Local files":"本地文件",
+"All websites and local files":"全部网站和本地文件",
+"Today reading local files: {time}":"今日本地文件阅读：{time}",
+"Counting foreground reading time. Files are combined; contents are not read.":"正在统计前台阅读时间。所有本地文件合并统计，不读取内容。",
+"Reading timer paused. Return to the file and keep your device active.":"阅读计时已暂停。请返回文件，并保持设备处于活动状态。",
+"Local files are combined into one entry. Only foreground time is counted; filenames, paths and contents are not stored. Local files do not consume website budgets.":"本地文件合并为一条记录，仅统计前台用时，不保存文件名、路径或内容。本地文件不消耗网站额度。",
+
 "A gentle otter reminder":"水獭的温柔提醒",
 "Show the otter at budget milestones":"在额度提醒节点显示水獭",
 "Play a soft chirp on arrival":"水獭出场时轻叫一声",

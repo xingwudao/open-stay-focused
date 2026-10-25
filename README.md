@@ -21,6 +21,9 @@ accounts or telemetry. Free and MIT licensed.
   challenges and delayed settings changes add friction when you try to relax rules.
 - **See where your time goes.** Check the live focus timer, current-site usage,
   and local screen time reports for today, 7 days or 30 days. Export totals as CSV.
+- **Track local reading time.** From v0.3.1, foreground local files (including
+  PDFs) share a “Local files” usage entry. No file contents are read, and no
+  filenames or paths are stored. Local files do not consume website budgets.
 - **Gentle animated budget reminders.** An optional otter nods, steps and sways
   at 50%, 80% and exhaustion. It wanders for 5% / 10% of the total budget,
   then stays on the blocked page. Dismiss it with a click; sound is optional.
@@ -31,7 +34,7 @@ accounts or telemetry. Free and MIT licensed.
 
 ## Install
 
-1. Download `open-stay-focused-0.2.4.zip` from
+1. Download `open-stay-focused-0.3.1.zip` from
    [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest).
 2. Extract it into a folder you will keep on your computer.
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,

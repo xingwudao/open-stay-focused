@@ -261,3 +261,28 @@ real native-popup countdown. Build, package and whitespace checks passed.
 - Browser autoplay may silence the synthesized chirp. The visual reminder still
   runs; an explicit Play chirp button provides a user-gesture fallback. No
   suspended sound is queued for later playback.
+
+## 2026-10-25 — v0.3.1 local-file reading time
+
+- `npm test`: 65/65 passed. New tests cover foreground-only file eligibility,
+  loading/discarded/background/idle/locked/minimized exclusions, popup focus,
+  generic path-free visit markers, aggregate statistics, filters and CSV.
+- Focused browser regression: 9/9 passed, covering local PDF, website quota
+  expiry, idle/unfocused accounting, bilingual UI, charts, live popup countdown,
+  native toolbar popup, and automatic fresh-tab/SPA accounting without popup.
+- Final local-PDF retest: 1/1 passed after narrowing the new filter option to
+  the statistics selector. Verifies focus-session scopes remain unchanged.
+- Local-file integration uses a real generated PDF opened as a file URL in an
+  isolated Chromium profile. No extension page is open during initial counting.
+  Storage polling verifies autonomous accumulation, idle/background pauses,
+  resumed counting, no quota consumption, and no filename/path in local or
+  session storage. The manifest still has only HTTP(S) host permissions.
+- Local popup labels are checked with a controlled live-state response;
+  the native-toolbar regression exercises website timing, not a native PDF popup.
+- Browser idle state is controlled in tests. Polling keeps the worker observable;
+  this does not establish long unattended service-worker suspension behavior.
+- `npm run build`, `npm run package`, `git diff --check`: passed.
+  Package: `dist/open-stay-focused-0.3.1.zip` (27 files).
+- No full browser suite rerun, personal profile automation, file-content access,
+  or Chrome Web Store submission. Reading time remains an estimate and pauses
+  when Chrome reports 60 seconds of device inactivity.

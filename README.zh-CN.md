@@ -27,7 +27,7 @@
 ## 安装方法
 
 1. 从 [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest)
-   下载 `open-stay-focused-0.2.4.zip`。
+   下载 `open-stay-focused-0.3.1.zip`。
 2. 解压到准备长期保留的文件夹。
 3. 打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”，
    选中包含 `manifest.json` 的解压文件夹。
@@ -153,3 +153,11 @@ Linux CI 可使用 `npx playwright install --with-deps chromium` 安装浏览器
 报告问题时，请提供浏览器版本、最小规则配置，以及预期与实际行为。
 不要上传浏览历史或个人设置。详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 源码和原创美术资源采用 MIT 许可证。
+
+## 本地文件阅读时间（v0.3.1）
+
+Chrome 中的本地 PDF 等 `file://` 标签页可自动统计前台阅读用时，
+无需点击扩展图标。切换到其他标签或应用、最小化浏览器、电脑空闲或锁屏时暂停。
+所有本地文件合并显示为“本地文件”，可在统计页筛选并导出 CSV。
+不读取文件内容，不保存文件名或路径，不新增文件访问权限；
+本地文件不消耗网站额度，也不受网站强制专注拦截。

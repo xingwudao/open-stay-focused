@@ -1,7 +1,7 @@
 import {companionReminder,browsingReminderGroups} from './core/companion.js';
 import {createController} from './controller.js';
 import {evaluate,localDay,budgetDay} from './core/policy.js';
-import {webURL} from './core/patterns.js';
+import {webURL,isLocalFile,usageHost} from './core/patterns.js';
 import {eligibleVisits,pageTimer} from './core/tracking.js';
 const UI_PATHS=new Set(['/ui/options.html','/ui/popup.html','/ui/blocked.html']);
 const beats=new Map(),injectionAttempts=new Map();
@@ -84,7 +84,7 @@ async function sample(){
  const popupAlive=popupFocus&&popupFocus.windowId===win?.id&&now>=popupFocus.at&&now-popupFocus.at<1500
   &&(await chrome.runtime.getContexts({contextTypes:['POPUP'],documentIds:[popupFocus.documentId]})).length>0;
  const visits=eligibleVisits({tabs,win,idle,beats,now,trackAudio:before.settings.trackAudio,popupFocused:!!popupAlive});
- await controller.tick({url:tab?.url??'',tabId:tab?.id,visits,eligible:visits.length>0,now});
+ await controller.tick({url:isLocalFile(tab?.url)?'file:///':tab?.url??'',tabId:tab?.id,visits,eligible:visits.length>0,now});
  const state=await controller.snapshot();setTicker(visits.length>0);await badge(tab,state);
  return {tab,tabs,visits,state,idle,hasHeartbeat:!!(tab&&beats.get(tab.id)?.url===tab.url&&now-beats.get(tab.id).at<15000)};
 }
@@ -107,8 +107,8 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
     return {reminder,enabled:live.state.settings.companionEnabled,sound:live.state.settings.companionSound};
    }
    if(message.type==='getLiveState'){
-    const host=webURL(live.tab?.url)?.hostname;
-    return {state:cleanState(live.state),tab:live.tab?{id:live.tab.id,url:live.tab.url}:null,
+    const host=usageHost(live.tab?.url);
+    return {state:cleanState(live.state),tab:live.tab?{id:live.tab.id,url:isLocalFile(live.tab.url)?'file:///':live.tab.url}:null,
      decision:evaluate(live.tab?.url,Date.now(),live.state),hostUsedMs:host?(live.state.stats[localDay(Date.now())]?.[host]??0):0,
      eligible:live.visits.some(v=>v.tabId===live.tab?.id),idle:live.idle,hasHeartbeat:live.hasHeartbeat};
    }

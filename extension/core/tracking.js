@@ -1,16 +1,18 @@
-import {webURL} from './patterns.js';
+import {webURL,isLocalFile,usageHost} from './patterns.js';
 import {evaluate,localDay} from './policy.js';
 export function eligibleVisits({tabs,win,idle,beats,now,trackAudio=false,popupFocused=false}){
  if(idle==='locked')return [];
  return tabs.filter(tab=>{
+  // Local viewers use browser state only, without reading or injecting into the file.
+  if(isLocalFile(tab.url))return !!(tab.active&&tab.windowId===win?.id&&(win.focused||popupFocused)&&win.state!=='minimized'&&idle==='active'&&tab.status!=='loading'&&!tab.discarded);
   if(!webURL(tab.url))return false;
   if(trackAudio&&tab.audible)return true;
   const beat=beats.get(tab.id);
   return !!(tab.active&&tab.windowId===win?.id&&(win.focused||popupFocused)&&win.state!=='minimized'&&idle==='active'&&(popupFocused||(beat&&now>=beat.at&&now-beat.at<=15000&&beat.url===tab.url)));
- }).map(tab=>({url:tab.url,tabId:tab.id}));
+ }).map(tab=>({url:isLocalFile(tab.url)?'file:///':tab.url,tabId:tab.id}));
 }
 export function pageTimer(tab,state,now,running){
- const decision=evaluate(tab?.url,now,state),host=webURL(tab?.url)?.hostname;
+ const decision=evaluate(tab?.url,now,state),host=usageHost(tab?.url);
  return {show:false,language:state.settings.language,
   remainingMs:decision.remainingMs,usedMs:host?(state.stats[localDay(now)]?.[host]??0):0,
   reason:decision.reason,running:!!running};

@@ -1,6 +1,6 @@
 # Privacy policy
 
-Effective: 2026-10-23. Applies to Open Stay Focused 0.3.0.
+Effective: 2026-10-25. Applies to Open Stay Focused 0.3.0 and 0.3.1.
 
 Open Stay Focused has no backend, account, advertising SDK or analytics service.
 The extension does not send settings, usage or page content to its developers.
@@ -30,6 +30,22 @@ state and whether a tab is audible; it does not record microphone or system audi
 which is not retained across browser restarts. Persistent statistics contain
 hostnames rather than visited paths, queries, page titles, content or chats.
 User-entered settings can contain paths because path rules are configurable.
+
+## Local-file reading time (from 0.3.1)
+
+When a local `file://` tab is active in a focused, non-minimized Chrome window
+and the device is active, the extension counts its foreground time. All local
+files are combined into one `file://` statistics entry with daily/hourly totals
+and aggregate sessions, retained under the same 30-date policy. This is an
+estimate of foreground reading time, not proof of reading or page progress.
+
+The existing tabs permission exposes the current tab URL to the background
+worker. Local URLs are replaced with a generic `file:///` marker before being
+passed to accounting or saved in either local or session storage. File names
+and paths are not retained. The extension does not open, fetch or parse the file,
+read its contents, inject scripts into local pages, or request file host access.
+Local files do not consume website budgets and are not blocked by website rules
+or focus sessions. Version 0.3.0 does not track local-file reading time.
 
 ## Permissions
 

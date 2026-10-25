@@ -1,5 +1,5 @@
 import {defaultSettings} from './settings.js';
-import {matchesAny,webURL} from './patterns.js';
+import {matchesAny,usageHost} from './patterns.js';
 import {budgetDay,isScheduled,localDay} from './policy.js';
 function add(map,key,ms){const value=(Object.hasOwn(map,key)?map[key]:0)+ms;Object.defineProperty(map,key,{value,writable:true,enumerable:true,configurable:true});}
 function own(map,key,create){if(!Object.hasOwn(map,key))Object.defineProperty(map,key,{value:create(),writable:true,enumerable:true,configurable:true});return map[key];}
@@ -22,7 +22,7 @@ export function accountIntervalMany(input,{visits=[],from,to,eligible=true}) {
   // Repeated or backward timestamps are not evidence that a session ended.
   if(!Number.isFinite(from)||!Number.isFinite(to)||to<=from)return state;
   const s=state.settings,hosts=new Set(),groups=new Set();
-  for(const visit of visits){const u=webURL(visit.url);if(!u)continue;hosts.add(u.hostname);
+  for(const visit of visits){const host=usageHost(visit.url);if(!host)continue;hosts.add(host);
     if(!matchesAny(visit.url,s.allowlist))for(const g of s.groups)if(g.enabled&&matchesAny(visit.url,g.patterns))groups.add(g.id);
   }
   const previous=new Set(state.activeHosts);

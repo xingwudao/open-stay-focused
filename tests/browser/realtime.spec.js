@@ -129,3 +129,39 @@ test('SPA heartbeats accept the current document but reject stale document ident
  await worker.evaluate(()=>{chrome.webNavigation.getFrame=globalThis.actualGetFrame;});
  expect((await heartbeat()).ok).toBe(true);
 });
+
+test('local PDF reading counts without popup or file access and stores no filenames',async()=>{
+ const {mkdtemp,writeFile,rm}=await import('node:fs/promises');
+ const {tmpdir}=await import('node:os');const {pathToFileURL}=await import('node:url');
+ const dir=await mkdtemp(path.join(tmpdir(),'osf-local-reading-')),file=path.join(dir,'private-reading-document.pdf');
+ const content='BT /F1 18 Tf 40 100 Td (Local reading fixture) Tj ET';
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${content.length} >>\nstream\n${content}\nendstream`];
+ let pdf='%PDF-1.4\n',offsets=[0];
+ for(const [i,obj] of objects.entries()){offsets.push(Buffer.byteLength(pdf));pdf+=`${i+1} 0 obj\n${obj}\nendobj\n`;}
+ const xref=Buffer.byteLength(pdf);pdf+=`xref\n0 6\n0000000000 65535 f \n${offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+ await writeFile(file,pdf);
+ try{
+  await page.close();const local=await context.newPage();await local.goto(pathToFileURL(file).href);await local.bringToFront();
+  const stored=()=>worker.evaluate(async()=> (await chrome.storage.local.get('state')).state);
+  const total=async()=>Object.values((await stored()).stats).reduce((n,row)=>n+(row['file://']??0),0);
+  await expect.poll(total,{timeout:10000}).toBeGreaterThan(2000);
+  const data=await stored();expect(JSON.stringify(data)).not.toContain('private-reading-document');
+  const session=await worker.evaluate(()=>chrome.storage.session.get(null));expect(JSON.stringify(session)).not.toContain(dir);
+  expect(data.usage).toEqual({});
+  // Local reading never requests content injection or extra file host permissions.
+  expect(await worker.evaluate(()=>chrome.runtime.getManifest().host_permissions)).toEqual(['http://*/*','https://*/*']);
+  await worker.evaluate(()=>{chrome.idle.queryState=async()=>'idle';});
+  await local.waitForTimeout(1500);const paused=await total();await local.waitForTimeout(1500);expect(await total()).toBe(paused);
+  await worker.evaluate(()=>{chrome.idle.queryState=async()=>'active';});
+  const other=await context.newPage();await other.goto('about:blank');await local.bringToFront();
+  await expect.poll(total,{timeout:7000}).toBeGreaterThan(paused+1000);
+  await other.bringToFront();await other.waitForTimeout(1200);const background=await total();await other.waitForTimeout(1500);expect(await total()).toBe(background);
+  page=await context.newPage();await page.goto(base+'/ui/options.html');await page.locator('#stats-filter').selectOption('local');
+  await expect(page.locator('#stats')).toContainText('Local files');
+  expect(await page.locator('#focus-mode option').evaluateAll(options=>options.map(o=>o.value))).toEqual(['blocked','exceptAllowed','all']);
+  await page.locator('#stats-view').selectOption('websites');await expect(page.locator('.chart-legend')).toContainText('Local files');
+  const popup=await context.newPage();
+  await popup.addInitScript(state=>{chrome.runtime.sendMessage=async()=>({ok:true,data:{state,tab:{id:1,url:'file:///'},decision:{reason:'unsupported',remainingMs:null},hostUsedMs:3000,eligible:true}});},await stored());
+  await popup.goto(base+'/ui/popup.html');await expect(popup.locator('#remaining')).toHaveText('0m 03s');await expect(popup.locator('#reason')).toContainText('contents are not read');await expect(popup.locator('#quick-add')).toBeDisabled();
+ }finally{await rm(dir,{recursive:true,force:true});}
+});

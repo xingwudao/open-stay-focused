@@ -37,3 +37,13 @@ test('focused popup is fresh activity evidence even before page heartbeat recove
  assert.deepEqual(eligibleVisits(input),[{url:tabs[0].url,tabId:1}]);
  assert.deepEqual(eligibleVisits({...input,popupFocused:false}),[]);
 });
+
+test('local files count foreground only without heartbeats and never expose paths in visits',()=>{
+ const file={id:3,windowId:1,active:true,url:'file:///Users/private/secret.pdf',status:'complete'};
+ const input={tabs:[file],win,idle:'active',beats:new Map(),now,trackAudio:true};
+ assert.deepEqual(eligibleVisits(input),[{url:'file:///',tabId:3}]);
+ for(const idle of ['idle','locked'])assert.deepEqual(eligibleVisits({...input,idle}),[]);
+ for(const change of [{active:false,audible:true},{status:'loading'},{discarded:true}])assert.deepEqual(eligibleVisits({...input,tabs:[{...file,...change}]}),[]);
+ for(const change of [{focused:false},{state:'minimized'}])assert.deepEqual(eligibleVisits({...input,win:{...win,...change}}),[]);
+ assert.equal(eligibleVisits({...input,win:{...win,focused:false},popupFocused:true}).length,1);
+});

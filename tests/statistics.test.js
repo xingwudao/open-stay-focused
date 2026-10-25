@@ -59,3 +59,16 @@ test('chart summaries expose daily sessions, hourly duration and an honest peak 
  const empty=summarizeUsage(s,{range:'today',now:time(),search:'missing'});
  assert.equal(empty.peakHour,null);assert.equal(empty.totalSessions,0);
 });
+
+test('local reading aggregates time without consuming quotas, supports filters and CSV',()=>{
+ const now=new Date(2026,9,25,12).getTime(),s=initialState();
+ s.settings.groups=[{id:'g',name:'Sites',enabled:true,patterns:['example.com'],budgetMs:60000}];
+ const result=accountIntervalMany(s,{from:now,to:now+3000,visits:[{url:'file:///private/a.pdf'}]});
+ const summary=summarizeUsage(result,{now});
+ assert.deepEqual(summary.rows,[{host:'file://',ms:3000,sessions:1}]);
+ assert.deepEqual(result.usage,{});assert.equal(JSON.stringify(result).includes('private'),false);
+ assert.equal(summarizeUsage(result,{now,filter:'blocked'}).totalMs,0);
+ assert.equal(summarizeUsage(result,{now,filter:'allowed'}).totalMs,0);
+ assert.equal(summarizeUsage(result,{now,filter:'local',search:'本地文件'}).totalMs,3000);
+ assert.match(csvUsage(summary),/"file:\/\/",3,1/);
+});

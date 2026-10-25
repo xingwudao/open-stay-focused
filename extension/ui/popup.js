@@ -1,6 +1,6 @@
 import {setLanguage,t} from './i18n.js';
 import {$,send,duration,notice,mutate,element} from './shared.js';
-import {webURL,matchesAny} from '../core/patterns.js';
+import {webURL,matchesAny,isLocalFile} from '../core/patterns.js';
 $('version').textContent='v'+chrome.runtime.getManifest().version;
 let state,tab,busy=false,refreshing=false,groupSignature='',selectedGroupId=null;
 function renderAddState(){
@@ -15,10 +15,11 @@ async function load(){
  if(refreshing||busy)return;refreshing=true;
  try{
  const live=await send({type:'getLiveState',popupFocused:document.hasFocus()});state=live.state;tab=live.tab;setLanguage(state.settings.language);
- const url=webURL(tab?.url),decision=live.decision;
- $('site').textContent=url?.hostname??t('Browser or extension page');$('remaining').textContent=duration(decision.remainingMs);
- $('host-usage').textContent=t('Today on this website: {time}',{time:duration(live.hostUsedMs??0)});
+ const url=webURL(tab?.url),decision=live.decision,local=isLocalFile(tab?.url);
+ $('site').textContent=local?t('Local files'):url?.hostname??t('Browser or extension page');$('remaining').textContent=duration(local?live.hostUsedMs:decision.remainingMs);
+ $('host-usage').textContent=t(local?'Today reading local files: {time}':'Today on this website: {time}',{time:duration(live.hostUsedMs??0)});
  $('reason').textContent=t(({'available':'Available within your current rules.','allowed':'This page is on your allowlist.','unsupported':'Budgets apply to HTTP and HTTPS websites.','nuclear':'A focus session is active.','quota':'Daily budget reached.','paused':'Restrictions are paused.','disabled':'Restrictions are paused.','outside-schedule':'Outside active hours. Your budget is paused.'})[decision.reason]??'Available within your current rules.');
+ if(local)$('reason').textContent=t(live.eligible?'Counting foreground reading time. Files are combined; contents are not read.':'Reading timer paused. Return to the file and keep your device active.');
  if(decision.remainingMs!==null&&decision.reason==='available'&&!live.eligible){
   $('reason').textContent=t(live.idle==='locked'?'Timer paused: your device is locked.':live.idle==='idle'?'Timer paused: no activity for 60 seconds. Move the mouse or press a key to resume.':!live.hasHeartbeat?'Reconnecting to this page. Refresh the website if the timer stays paused.':'Timer paused: return focus to this browser window.');
  }

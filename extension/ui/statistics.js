@@ -1,5 +1,6 @@
 import {$,element,duration} from './shared.js';
 import {t,getLanguage} from './i18n.js';
+const hostLabel=host=>host==='file://'?t('Local files'):host;
 const colors=['#337868','#bd773f','#677cb0','#9a647e','#84954a','#777d79'];
 let lastRender='';
 const valueText=(value,metric)=>metric==='ms'?duration(value):t('{count} sessions',{count:value});
@@ -20,7 +21,7 @@ function lineChart(points,metric){
 }
 function shareChart(rows,metric,total){
  const root=element('div',undefined,'share-chart'),svg=svgElement('svg',{viewBox:'0 0 220 220',role:'img','aria-label':t('Website share')});
- const parts=rows.filter(row=>row[metric]>0).slice(0,5).map(row=>({label:row.host,value:row[metric]}));
+ const parts=rows.filter(row=>row[metric]>0).slice(0,5).map(row=>({label:hostLabel(row.host),value:row[metric]}));
  const other=total-parts.reduce((sum,p)=>sum+p.value,0);if(other>0)parts.push({label:t('Other websites'),value:other});
  let offset=0;const legend=element('ul',undefined,'chart-legend');
  parts.forEach((part,i)=>{
@@ -40,7 +41,7 @@ export function renderUsage(data){
  const rows=[...data.rows].sort((a,b)=>b[metric]-a[metric]||a.host.localeCompare(b.host)),total=metric==='ms'?data.totalMs:data.totalSessions;
  $('stats-total').textContent=t('{time} total · {count} sessions',{time:duration(data.totalMs),count:data.totalSessions});
  const highlights=$('stats-highlights');highlights.replaceChildren();
- for(const [label,value] of [['Total time',duration(data.totalMs)],['Sessions',String(data.totalSessions)],['Websites',String(data.rows.length)],['Busiest hour',data.peakHour===null?'—':`${String(data.peakHour).padStart(2,'0')}:00–${String((data.peakHour+1)%24).padStart(2,'0')}:00`]]){
+ for(const [label,value] of [['Total time',duration(data.totalMs)],['Sessions',String(data.totalSessions)],['Websites',String(data.rows.filter(row=>row.host!=='file://').length)],['Busiest hour',data.peakHour===null?'—':`${String(data.peakHour).padStart(2,'0')}:00–${String((data.peakHour+1)%24).padStart(2,'0')}:00`]]){
   const card=element('div');card.append(element('span',t(label)),element('strong',value));highlights.append(card);
  }
  const notes=[];
@@ -52,14 +53,14 @@ export function renderUsage(data){
  const points=view==='hourly'?data.hourly:data.daily,chartTotal=view==='hourly'?data.hourlyTotalMs:total;
  if(!chartTotal)chart.append(element('p',t('No data for this chart. Try another range or filter.'),'empty'));
  else chart.append(view==='websites'?shareChart(rows,metric,total):lineChart(points,metric));
- const chartValues=view==='websites'?rows.map(row=>({label:row.host,...row})):points;
+ const chartValues=view==='websites'?rows.map(row=>({label:hostLabel(row.host),...row})):points;
  for(const point of chartValues){const row=element('div',undefined,'stat-row');row.append(element('span',point.label),element('strong',valueText(point[metric],metric)));values.append(row);}
  if(focused!==null)chart.querySelector(`[data-point="${focused}"]`)?.focus({preventScroll:true});
  const root=$('stats');root.replaceChildren();
  if(!rows.length)root.append(element('p',t('Nothing recorded yet. A little breathing room.'),'empty'));
  rows.forEach((row,i)=>{
   const item=element('div',undefined,'usage-ranking'),heading=element('div',undefined,'stat-row'),share=total?row[metric]/total*100:0;
-  heading.append(element('span',`${i+1}. ${row.host}`),element('strong',valueText(row[metric],metric)));
+  heading.append(element('span',`${i+1}. ${hostLabel(row.host)}`),element('strong',valueText(row[metric],metric)));
   const track=element('div',undefined,'ranking-track'),fill=element('div');fill.style.width=`${share}%`;track.setAttribute('aria-hidden','true');track.append(fill);
   item.append(heading,track,element('p',`${share.toFixed(1)}% · ${valueText(row[metric==='ms'?'sessions':'ms'],metric==='ms'?'sessions':'ms')}`,'hint'));root.append(item);
  });
