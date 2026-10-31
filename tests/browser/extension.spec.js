@@ -33,19 +33,22 @@ test('loads extension and UI creates a group, persists and exports settings',asy
 test('beneficial destinations edit directly and round-trip through settings',async()=>{
  await expect(page.getByRole('heading',{name:'Better destinations'})).toBeVisible();
  await expect(page.getByText('Items on the same hostname share observed foreground time.')).toBeVisible();
- await page.getByLabel('Redirect policy').selectOption('random');
  await page.getByLabel('Destination name').fill('Documentation');
  await page.getByLabel('Destination URL').fill('https://example.com/guide?q=1#start');
  await page.getByLabel('Daily minimum minutes').fill('25');
  await page.getByRole('button',{name:'Add destination'}).click();
- await expect(page.locator('#beneficial-sites').getByLabel('Name')).toHaveValue('Documentation');
- await page.getByRole('button',{name:'Save settings',exact:true}).click();
- const saved=await settings();expect(saved.beneficialPool.policy).toBe('random');
- expect(saved.beneficialPool.items[0]).toMatchObject({name:'Documentation',url:'https://example.com/guide?q=1',targetMs:1500000,enabled:true});
+ await page.locator('#beneficial-name').fill('Learning');await page.locator('#beneficial-url').fill('https://learn.example/');await page.locator('#beneficial-minutes').fill('40');await page.getByRole('button',{name:'Add destination'}).click();
+ await page.getByLabel('Redirect policy').selectOption('random');
+ await page.locator('#beneficial-sites').getByRole('button',{name:'Remove destination'}).first().click();
+ await expect(page.getByLabel('Redirect policy')).toHaveValue('random');
  await page.locator('#language').selectOption('zh-CN');
+ await expect(page.getByLabel('跳转策略')).toHaveValue('random');
+ await page.locator('#save').click();
+ const saved=await settings();expect(saved.beneficialPool.policy).toBe('random');
+ expect(saved.beneficialPool.items[0]).toMatchObject({name:'Learning',url:'https://learn.example/',targetMs:2400000,enabled:true});
  await expect(page.getByRole('heading',{name:'有益网站池'})).toBeVisible();
- await expect(page.locator('#beneficial-sites').getByLabel('每日最低分钟数')).toHaveValue('25');
- await page.reload();await expect(page.locator('#beneficial-sites').getByLabel('名称')).toHaveValue('Documentation');
+ await expect(page.locator('#beneficial-sites').getByLabel('每日最低分钟数')).toHaveValue('40');
+ await page.reload();await expect(page.locator('#beneficial-sites').getByLabel('名称')).toHaveValue('Learning');
 });
 test('quota blocks new pages; allowlist bypass and SPA route check',async()=>{
  const s=await settings();s.groups=[group(['127.0.0.1/blocked'])];await save(s);
@@ -461,9 +464,10 @@ test('otter recommendation link is localized, accessible and uses the current ta
  let pet=page.locator('#open-stay-focused-companion'),link=pet.getByRole('link',{name:`去看看${destination.name}`});await expect(link).toBeVisible();
  await link.focus();await expect(link).toBeFocused();expect(await link.evaluate(el=>getComputedStyle(el).overflowWrap)).toBe('anywhere');
  await page.evaluate(()=>OpenStayCompanion.stop());
+ await page.evaluate(()=>{const base=document.createElement('base');base.target='_blank';document.head.append(base);});
  await page.evaluate(destination=>OpenStayCompanion.show({level:80,groupName:'Focus',language:'en',sound:false,durationMs:10000,destination}),destination);
  pet=page.locator('#open-stay-focused-companion');link=pet.getByRole('link',{name:`Visit ${destination.name} instead`});await expect(link).toBeVisible();
- await link.click();await expect(page).toHaveURL(destination.url);
+ const pages=context.pages().length;await link.click();await expect(page).toHaveURL(destination.url);expect(context.pages()).toHaveLength(pages);
 });
 test('otter preview plays one short synthesized sound after a user click and releases audio',async()=>{
  await page.evaluate(()=>{const Native=AudioContext;globalThis.AudioContext=class extends Native{constructor(...args){super(...args);globalThis.testOtterAudio=this;}};});

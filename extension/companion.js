@@ -43,7 +43,7 @@
   root.querySelector('.name').textContent=groupName;
   root.querySelector('.message').textContent=zh?({50:'额度已用一半，伸个懒腰吧。',80:'额度已用八成，慢慢收个尾吧。',100:'今天就到这里，我陪你歇一会儿。'}[level]):({50:'Half your budget used. A little stretch?',80:'80% used. Time to wrap up gently.',100:'All done for today. Let’s take a breath.'}[level]);
   const destinationLink=root.querySelector('.destination');
-  if(destination){destinationLink.hidden=false;destinationLink.href=destination.url;destinationLink.textContent=zh?`去看看${destination.name}`:`Visit ${destination.name} instead`;}
+  if(destination){destinationLink.hidden=false;destinationLink.href=destination.url;destinationLink.target='_self';destinationLink.textContent=zh?`去看看${destination.name}`:`Visit ${destination.name} instead`;}
   for(const button of root.querySelectorAll('.close,.animal')){button.setAttribute('aria-label',zh?'收起水獭提醒':'Dismiss otter reminder');button.addEventListener('click',stop);}
   const listen=root.querySelector('.listen');listen.hidden=!sound;listen.textContent=zh?'听一声':'Play chirp';listen.addEventListener('click',chirp);
   (document.body??document.documentElement).append(host);

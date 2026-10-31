@@ -88,6 +88,7 @@ $('add-beneficial').addEventListener('click',()=>act(async()=>{
  const item={id:crypto.randomUUID(),name:$('beneficial-name').value,url:$('beneficial-url').value,enabled:true,targetMs:Number($('beneficial-minutes').value)*60000};
  const checked=validateSettings({...draft,beneficialPool:{policy:$('beneficial-policy').value,items:[...draft.beneficialPool.items,item]}});draft.beneficialPool=checked.beneficialPool;renderBeneficial();$('beneficial-name').value='';$('beneficial-url').value='';notice('Destination added to your draft. Save settings to apply it.');
 }));
+$('beneficial-policy').addEventListener('change',()=>draft.beneficialPool.policy=$('beneficial-policy').value);
 $('save').addEventListener('click',()=>act(async()=>{const settings=collect();state=await mutate(state,{type:'saveSettings',settings,revision:draftRevision});render();notice('Settings saved.');}));
 $('start-focus').addEventListener('click',()=>act(async()=>{
  if(!$('focus-confirm').checked)throw Error('Confirm that the session cannot be canceled once active.');

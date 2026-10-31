@@ -28,6 +28,15 @@ test('unsafe beneficial destinations retain the quota block page',async()=>{
  await page.evaluate(async()=>{const {data:s}=await chrome.runtime.sendMessage({type:'getState'});s.settings.groups=[{id:'live',name:'Live fixture',enabled:true,budgetMs:0,patterns:['127.0.0.1']}];s.settings.beneficialPool={policy:'random',items:[{id:'blocked',name:'Blocked too',url:'http://127.0.0.1:4173/other',enabled:true,targetMs:1800000}]};const r=await chrome.runtime.sendMessage({type:'saveSettings',settings:s.settings,revision:s.revision});if(!r.ok)throw Error(r.error);});
  const site=await context.newPage();await site.goto('http://127.0.0.1:4173/').catch(()=>{});await expect(site).toHaveURL(/ui\/blocked\.html/);
 });
+test('final settlement rejects a destination that exhausts alongside the source',async()=>{
+ await page.evaluate(async()=>{const {data:s}=await chrome.runtime.sendMessage({type:'getState'});s.settings.trackAudio=true;s.settings.groups=[{id:'source',name:'Source',enabled:true,budgetMs:2000,patterns:['127.0.0.1']},{id:'target',name:'Target',enabled:true,budgetMs:500,patterns:['localhost']}];s.settings.beneficialPool={policy:'largestDeficit',items:[{id:'learn',name:'Learn',url:'http://localhost:4173/learn',enabled:true,targetMs:1800000}]};const r=await chrome.runtime.sendMessage({type:'saveSettings',settings:s.settings,revision:s.revision});if(!r.ok)throw Error(r.error);});
+ const target=await context.newPage();await target.goto('http://localhost:4173/learn');
+ await worker.evaluate(()=>{const query=chrome.tabs.query.bind(chrome.tabs);chrome.tabs.query=async q=>(await query(q)).map(tab=>tab.url?.startsWith('http://localhost:4173/')?{...tab,audible:true}:tab);});
+ const source=await context.newPage(),navigations=[];source.on('framenavigated',frame=>{if(frame===source.mainFrame())navigations.push(frame.url());});await source.goto('http://127.0.0.1:4173/');await source.bringToFront();
+ await expect(source).toHaveURL(/ui\/blocked\.html/,{timeout:10000});
+ const saved=await state(),targetUsed=Object.values(saved.usage).reduce((sum,row)=>sum+(row.target??0),0);expect(targetUsed).toBeGreaterThanOrEqual(500);
+ expect(navigations).not.toContain('http://localhost:4173/learn');
+});
 test('website has no floating timer while background usage keeps accumulating',async()=>{
  await setup();
  // An existing installation can retain the old preference; it must not add UI.
