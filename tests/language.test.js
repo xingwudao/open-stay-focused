@@ -35,6 +35,8 @@ test('Chinese challenge uses saved language, including language-switching writes
 });
 test('translations format text safely and fall back to English',()=>{
  setLanguage('zh-CN');assert.equal(t('Save settings'),'保存设置');
+ assert.equal(t('Better destinations'),'有益网站池');
+ assert.equal(t('Daily minimum minutes'),'每日最低分钟数');
  assert.equal(t('{minutes}m {seconds}s',{minutes:2,seconds:'03'}),'2分03秒');
  assert.equal(t('Unknown diagnostic'),'Unknown diagnostic');
  setLanguage('en');assert.equal(t('Save settings'),'Save settings');

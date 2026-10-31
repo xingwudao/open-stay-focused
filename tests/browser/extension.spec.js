@@ -20,15 +20,32 @@ async function save(s){const state=await send({type:'getState'}),operation={type
 const group=(patterns,budgetMs=0)=>({id:'test',name:'Test group',enabled:true,patterns,budgetMs});
 test('loads extension and UI creates a group, persists and exports settings',async()=>{
  await expect(page.getByRole('heading',{name:'Your attention, on your terms.'})).toBeVisible();
- await page.getByLabel('Group name').fill('Reading');await page.getByLabel('Daily minutes').fill('10');
+ await page.getByLabel('Group name').fill('Reading');await expect(page.getByLabel('Daily minutes')).toHaveValue('30');
  await page.getByLabel('Website patterns').fill('example.com');
  await page.getByRole('button',{name:'Add group',exact:true}).click();
  await expect(page.getByText('Reading',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Save settings',exact:true}).click();
- expect((await settings()).groups[0].name).toBe('Reading');
+ expect((await settings()).groups[0]).toMatchObject({name:'Reading',budgetMs:1800000});
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export settings'}).click();
  expect((await download).suggestedFilename()).toMatch(/\.json$/);
  await page.reload();await expect(page.getByText('Reading',{exact:true})).toBeVisible();
+});
+test('beneficial destinations edit directly and round-trip through settings',async()=>{
+ await expect(page.getByRole('heading',{name:'Better destinations'})).toBeVisible();
+ await expect(page.getByText('Items on the same hostname share observed foreground time.')).toBeVisible();
+ await page.getByLabel('Redirect policy').selectOption('random');
+ await page.getByLabel('Destination name').fill('Documentation');
+ await page.getByLabel('Destination URL').fill('https://example.com/guide?q=1#start');
+ await page.getByLabel('Daily minimum minutes').fill('25');
+ await page.getByRole('button',{name:'Add destination'}).click();
+ await expect(page.locator('#beneficial-sites').getByLabel('Name')).toHaveValue('Documentation');
+ await page.getByRole('button',{name:'Save settings',exact:true}).click();
+ const saved=await settings();expect(saved.beneficialPool.policy).toBe('random');
+ expect(saved.beneficialPool.items[0]).toMatchObject({name:'Documentation',url:'https://example.com/guide?q=1',targetMs:1500000,enabled:true});
+ await page.locator('#language').selectOption('zh-CN');
+ await expect(page.getByRole('heading',{name:'有益网站池'})).toBeVisible();
+ await expect(page.locator('#beneficial-sites').getByLabel('每日最低分钟数')).toHaveValue('25');
+ await page.reload();await expect(page.locator('#beneficial-sites').getByLabel('名称')).toHaveValue('Documentation');
 });
 test('quota blocks new pages; allowlist bypass and SPA route check',async()=>{
  const s=await settings();s.groups=[group(['127.0.0.1/blocked'])];await save(s);
@@ -147,8 +164,9 @@ test('popup quick-add saves the active website through the protected settings co
  // Supply the real site-tab result at the browser API boundary only.
  await popup.addInitScript(tab=>{const send=chrome.runtime.sendMessage.bind(chrome.runtime);chrome.runtime.sendMessage=async command=>{const response=await send(command);if(command.type==='getLiveState'&&response.ok)response.data.tab=tab;return response;};},tab);
  await popup.goto(base+'/ui/popup.html');await expect(popup.locator('#site')).toHaveText('127.0.0.1');
+ await expect(popup.locator('#target-group')).toContainText('New group · 30 min/day');
  await popup.getByRole('button',{name:'Add website'}).click();await expect(popup.getByRole('status')).toContainText('added');
- expect((await settings()).groups[0].patterns).toEqual(['127.0.0.1']);
+ expect((await settings()).groups[0]).toMatchObject({patterns:['127.0.0.1'],budgetMs:1800000});
 });
 test('adapter excludes idle and unfocused intervals with controlled OS API responses',async()=>{
  const s=await settings();s.groups=[group(['127.0.0.1'],600000)];await save(s);
@@ -251,7 +269,7 @@ test('delayed schedule changes remain visible and CSV exports local statistics',
 
 
 test('default protections are enabled and allowance increases require every confirmation',async()=>{
- expect(initialSettings.schemaVersion).toBe(2);expect(initialSettings.challengeEnabled).toBe(true);expect(initialSettings.hidePause).toBe(true);expect(initialSettings.hideQuickAllow).toBe(true);
+ expect(initialSettings.schemaVersion).toBe(3);expect(initialSettings.challengeEnabled).toBe(true);expect(initialSettings.hidePause).toBe(true);expect(initialSettings.hideQuickAllow).toBe(true);
  const s=await settings();s.groups=[group(['example.com'],60000)];await save(s);await page.reload();
  await expect(page.locator('#pause')).toBeHidden();await page.getByLabel('Minutes per day',{exact:true}).fill('2');await page.locator('#save').click();
  for(let i=1;i<=8;i++){await expect(page.getByRole('heading',{name:`Confirm change ${i} of 8`})).toBeVisible();expect((await settings()).groups[0].budgetMs).toBe(60000);await page.getByRole('button',{name:'Continue',exact:true}).click();}
@@ -367,7 +385,7 @@ test('group rename saves without challenge during focus but mixed relaxation rem
  await expect(page.getByRole('alert')).toContainText('nuclear session');
  expect((await settings()).groups[0].name).toBe('Renamed during focus');
  await page.locator('#language').selectOption('zh-CN');
- await expect(page.locator('#session-banner')).toContainText('仅可保存分组改名');
+ await expect(page.locator('#session-banner')).toContainText('限制性设置保持锁定；有益网站池仍可编辑');
 });
 test('exhausted group can be renamed in settings without restoring its budget',async()=>{
  const s=await settings();s.groups=[group(['127.0.0.1'],2000)];s.challengeEnabled=true;await save(s);

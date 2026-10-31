@@ -3,7 +3,7 @@ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const valueFor=(used,id)=>Object.hasOwn(used,id)?used[id]:0;
 const includes=(a,b)=>b.every(x=>a.includes(x));
 function restrictionKey(settings){
-  const {language,companionEnabled,companionSound,groups,allowlist,...rest}=settings;
+  const {language,companionEnabled,companionSound,beneficialPool,groups,allowlist,...rest}=settings;
   // Compare validated rules exactly; names and ordering do not affect enforcement.
   const value={...rest,allowlist:[...new Set(allowlist)].sort(),groups:groups.map(({name,patterns,...group})=>({...group,patterns:[...new Set(patterns)].sort()})).sort((a,b)=>a.id.localeCompare(b.id))};
   return JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);

@@ -72,3 +72,16 @@ test('renaming with tightening keeps existing confirmation behavior',async()=>{
  const p=await f.c.handle({type:'prepareChange',operation:await op(f,{groups:[{...s.groups[0],name:'New',patterns:['example.com','other.com']}]})},trusted);
  assert.equal(p.challengeRequired,false);assert.equal(p.steps,0);
 });
+test('beneficial pool edits stay frictionless but never relax restrictions',async()=>{
+ for(const mode of ['normal','exhausted','nuclear']){
+  const f=fixture();f.set(s=>{if(mode!=='normal')s.usage={'2026-10-17':{g:600000}};if(mode==='nuclear')s.nuclear={startAt:f.now()-1,endAt:f.now()+60000,mode:'all',policySnapshot:structuredClone(s.settings)};});
+  let state=await f.c.snapshot();
+  const pool={policy:'random',items:[{id:'docs',name:'Docs',url:'https://docs.example.com/',enabled:true,targetMs:1800000}]};
+  const operation={type:'saveSettings',revision:state.revision,settings:{...state.settings,beneficialPool:pool}};
+  assert.deepEqual(await f.c.handle({type:'prepareChange',operation},trusted),{ticket:null,steps:0,challengeRequired:false});
+  state=await f.c.handle(operation,trusted);assert.deepEqual(state.settings.beneficialPool,pool);
+  const mixed={type:'saveSettings',revision:state.revision,settings:{...state.settings,beneficialPool:{...pool,policy:'largestDeficit'},allowlist:['allowed.example']}};
+  if(mode==='normal')assert.equal((await f.c.handle({type:'prepareChange',operation:mixed},trusted)).challengeRequired,true);
+  else await assert.rejects(f.c.handle(mixed,trusted));
+ }
+});
