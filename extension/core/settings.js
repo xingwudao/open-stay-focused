@@ -3,7 +3,7 @@ export const CHALLENGE = 'My attention belongs to me. I choose this change delib
 export const challengeForLanguage = (language,customText='') => customText || (language === 'zh-CN' ? '我的注意力属于自己。我认真决定这次修改，并愿意承担它所花费的时间。在改变已经设定的边界之前，我会先想清楚，原本准备完成的事情是什么，这次调整是否真的能够帮助我完成它。一时产生的冲动，不需要立刻得到回应。我可以停下来，放慢呼吸，把目光从屏幕移开，再选择一个有用的小行动。时间不会因为我暂时忘记目标而停止流逝，已经做出的承诺也值得被认真对待。如果此刻的困难来自疲惫，我可以休息；如果来自任务不清楚，我可以把下一步写下来。我不必通过打开更多网页来逃避这些感受。完成这段文字以后，如果我仍然决定修改设置，我会承认这是自己的选择，并对接下来如何使用时间负责。我会重新安排工作与休息，让今天剩余的时间服务于真正重要的事情，而不是只追随眼前最容易得到的刺激。' : CHALLENGE);
 export const DISTRACTIONS = ['youtubeShorts','youtubeRecommendations','youtubeComments','instagramReels','facebookReels','xTrends','tiktokRecommendations'];
 export function defaultSettings() {
-  return {schemaVersion:2,language:'en',companionEnabled:true,companionSound:true,enabled:true,showTimer:false,trackAudio:false,hidePause:true,hideQuickAllow:true,challengeText:'',groups:[],allowlist:[],schedule:{days:[0,1,2,3,4,5,6],intervals:[[0,1440]]},resetMinute:0,challengeEnabled:true,distractions:Object.fromEntries(DISTRACTIONS.map(k=>[k,false]))};
+  return {schemaVersion:3,language:'en',companionEnabled:true,companionSound:true,enabled:true,showTimer:false,trackAudio:false,hidePause:true,hideQuickAllow:true,challengeText:'',groups:[],allowlist:[],schedule:{days:[0,1,2,3,4,5,6],intervals:[[0,1440]]},resetMinute:180,challengeEnabled:true,distractions:Object.fromEntries(DISTRACTIONS.map(k=>[k,false])),beneficialPool:{policy:'largestDeficit',items:[]}};
 }
 const fail = (message) => { throw new Error(message); };
 function keys(o, allowed) {
@@ -21,11 +21,15 @@ export function validateSettings(input) {
   if(input?.schemaVersion===1){
     keys(input,['companionEnabled','companionSound','language','schemaVersion','groups','allowlist','schedule','resetMinute','challengeEnabled','distractions']);
     if(typeof input.challengeEnabled!=='boolean')fail('Invalid reset time or challenge setting.');
-    input={...defaultSettings(),...input,schemaVersion:2,challengeEnabled:true};
+    input={...defaultSettings(),...input,schemaVersion:3,challengeEnabled:true};
   }
-  keys(input,['companionEnabled','companionSound','enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language','schemaVersion','groups','allowlist','schedule','resetMinute','challengeEnabled','distractions']);
+  if(input?.schemaVersion===2){
+    keys(input,['companionEnabled','companionSound','enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language','schemaVersion','groups','allowlist','schedule','resetMinute','challengeEnabled','distractions']);
+    input={...input,schemaVersion:3,beneficialPool:{policy:'largestDeficit',items:[]}};
+  }
+  keys(input,['companionEnabled','companionSound','enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language','schemaVersion','groups','allowlist','schedule','resetMinute','challengeEnabled','distractions','beneficialPool']);
   if (!['en','zh-CN'].includes(input.language)) fail('Unsupported language.');
-  if (input.schemaVersion!==2) fail('Unsupported settings version.');
+  if (input.schemaVersion!==3) fail('Unsupported settings version.');
   if (!Array.isArray(input.groups) || input.groups.length>100) fail('Use at most 100 groups.');
   if(['companionEnabled','companionSound','enabled','showTimer','trackAudio','hidePause','hideQuickAllow'].some(k=>typeof input[k]!=='boolean'))fail('Invalid protection setting.');
   if(typeof input.challengeText!=='string')fail('Invalid challenge text.');
@@ -49,5 +53,22 @@ export function validateSettings(input) {
   if(!integer(input.resetMinute,0,1439)||typeof input.challengeEnabled!=='boolean') fail('Invalid reset time or challenge setting.');
   keys(input.distractions,DISTRACTIONS);
   if(Object.values(input.distractions).some(x=>typeof x!=='boolean')) fail('Invalid distraction toggle.');
-  return structuredClone({...input,groups,allowlist,challengeText});
+  keys(input.beneficialPool,['policy','items']);
+  if(!['largestDeficit','random'].includes(input.beneficialPool.policy)||!Array.isArray(input.beneficialPool.items)||input.beneficialPool.items.length>100)fail('Invalid beneficial site policy or items.');
+  const beneficialIds=new Set();
+  const items=input.beneficialPool.items.map(item=>{
+    keys(item,['id','name','url','enabled','targetMs']);
+    if(typeof item.id!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(item.id)||beneficialIds.has(item.id))fail('Beneficial site IDs must be unique.');
+    beneficialIds.add(item.id);
+    if(typeof item.name!=='string'||!item.name.trim()||Array.from(item.name.trim()).length>80)fail('Beneficial site names need 1–80 characters.');
+    if(typeof item.url!=='string'||item.url.length>2048)fail('Beneficial site URL is invalid.');
+    let url;try{url=new URL(item.url);}catch{fail('Beneficial site URL is invalid.');}
+    if(!['http:','https:'].includes(url.protocol)||url.username||url.password)fail('Beneficial site URL is invalid.');
+    url.hash='';const normalized=url.toString();
+    if(normalized.length>2048||typeof item.enabled!=='boolean'||!integer(item.targetMs,60000,86400000)||item.targetMs%60000)fail('Beneficial site target is invalid.');
+    return {...item,name:item.name.trim(),url:normalized};
+  });
+  const result=structuredClone({...input,groups,allowlist,challengeText,beneficialPool:{policy:input.beneficialPool.policy,items}});
+  if(new TextEncoder().encode(JSON.stringify(result)).length>262144)fail('Settings must be at most 256 KiB.');
+  return result;
 }

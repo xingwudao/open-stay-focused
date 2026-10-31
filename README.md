@@ -17,6 +17,10 @@ accounts or telemetry. Free and MIT licensed.
   or telemetry. Inspect the source and export your data locally.
 - **Daily limits that fit your routine.** Give distracting websites a shared group
   budget, keep useful pages on an allowlist, and choose weekdays and active hours.
+- **Redirect attention toward something better.** Keep a local pool of beneficial
+  websites with daily minimum reading goals. When a distracting budget runs out,
+  choose a destination randomly or by its largest unmet goal; 50% and 80% otter
+  reminders can offer the same safe link. Pool edits never require a challenge.
 - **Commit to a focus session.** Start or schedule a Nuclear session. Typing
   challenges and delayed settings changes add friction when you try to relax rules.
 - **See where your time goes.** Check the live focus timer, current-site usage,
@@ -34,7 +38,7 @@ accounts or telemetry. Free and MIT licensed.
 
 ## Install
 
-1. Download `open-stay-focused-0.3.1.zip` from
+1. Download `open-stay-focused-0.3.2.zip` from
    [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest).
 2. Extract it into a folder you will keep on your computer.
 3. Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
@@ -57,6 +61,13 @@ Save settings. Newly opened popup, settings and blocked pages
 use the saved language. Existing installations default to English.
 
 ## Website limits, focus sessions and local reports
+
+New installations reset website allowances at 03:00 local time. Midnight does not
+renew the allowance; 03:00 does, even if you are still awake. This is a fixed
+schedule, not sleep detection. Choose a later reset under Active hours if needed.
+Existing installations keep their saved time (including 00:00); changes take
+effect at the same local time the next day. Statistics remain grouped by calendar
+date and history is not cleared.
 
 Add domain or page-path rules to a group, such as social media or entertainment.
 Each group shares one daily allowance across its matching sites. Allowlisted pages

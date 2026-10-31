@@ -24,6 +24,29 @@ test('settings strictly validate and cap import size',()=>{
  {...s,schedule:{days:[1],intervals:[[20,20]]}},{...s,allowlist:['x'.repeat(262145)]}]) assert.throws(()=>validateSettings(bad));
  assert.equal(validateSettings({...s,groups:[{...group(),budgetMs:0}]}).groups[0].budgetMs,0);
 });
+test('beneficial pool validates and normalizes local destination settings',()=>{
+ const s=defaultSettings();
+ assert.equal(s.schemaVersion,3);assert.deepEqual(s.beneficialPool,{policy:'largestDeficit',items:[]});
+ const item={id:'read-1',name:'  Read docs  ',url:'https://example.com/guide?q=1#chapter',enabled:true,targetMs:1800000};
+ const valid=validateSettings({...s,beneficialPool:{policy:'random',items:[item]}});
+ assert.deepEqual(valid.beneficialPool,{policy:'random',items:[{...item,name:'Read docs',url:'https://example.com/guide?q=1'}]});
+ const badItems=[
+  {...item,id:'bad id'},
+  {...item,name:''},
+  {...item,name:'x'.repeat(81)},
+  {...item,url:'ftp://example.com'},
+  {...item,url:'https://user:pass@example.com'},
+  {...item,url:`https://example.com/${'x'.repeat(2040)}`},
+  {...item,targetMs:59999},
+  {...item,targetMs:0},
+  {...item,targetMs:86460000},
+  {...item,extra:true}
+ ];
+ for(const bad of badItems)assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'random',items:[bad]}}));
+ assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'unknown',items:[]}}));
+ assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'random',items:[item,{...item}]}}));
+ assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'random',items:Array.from({length:101},(_,i)=>({...item,id:`i-${i}`}))}}));
+});
 test('overnight intervals belong to start day and reset uses local calendar',()=>{
  const schedule={days:[1],intervals:[[1320,120]]};
  assert.equal(isScheduled(time('2026-10-19T23:00:00'),schedule),true);
@@ -49,7 +72,7 @@ test('allowlist and overlapping groups; all nuclear priorities and expiry',()=>{
  assert.equal(evaluate('https://other.com',now,s).blocked,false);
 });
 test('accounting accrues all groups, splits midnight, preserves separate stats',()=>{
- const s=state(); s.settings.groups.push(group('g2'));
+ const s=state(); s.settings.resetMinute=0; s.settings.groups.push(group('g2'));
  const r=accountInterval(s,{url:'https://example.com/private?q=secret',from:time('2026-10-17T23:59:55'),to:time('2026-10-18T00:00:05'),eligible:true});
  assert.deepEqual(r.usage,{'2026-10-17':{g:5000,g2:5000},'2026-10-18':{g:5000,g2:5000}});
  assert.equal(r.stats['2026-10-18']['example.com'],5000);
@@ -100,4 +123,20 @@ test('wildcard patterns match literal stars in URL paths and enforce quota',()=>
  assert.equal(matchesPattern('https://example.com/*xxa','example.com/*a'),true);
  const s=state();s.settings.groups[0].patterns=['example.com/work/*'];s.settings.groups[0].budgetMs=0;
  assert.equal(evaluate('https://example.com/work/*anything',time('2026-10-17T12:00:00'),s).blocked,true);
+});
+
+test('default 03:00 budget survives midnight while statistics use calendar dates',()=>{
+ const s=state();assert.equal(s.settings.resetMinute,180);
+ const r=accountInterval(s,{url:'https://example.com',from:time('2026-10-17T23:59:55'),to:time('2026-10-18T00:00:05'),eligible:true});
+ assert.deepEqual(r.usage,{'2026-10-17':{g:10000}});
+ assert.equal(r.stats['2026-10-17']['example.com'],5000);
+ assert.equal(r.stats['2026-10-18']['example.com'],5000);
+ for(const at of ['2026-10-18T00:00:05','2026-10-18T02:59:59'])assert.equal(evaluate('https://example.com',time(at),r).blocked,true);
+ assert.equal(evaluate('https://example.com',time('2026-10-18T03:00:00'),r).remainingMs,10000);
+});
+test('continuous browsing splits at 03:00 and preserves saved reset preferences',()=>{
+ const s=state();const r=accountInterval(s,{url:'https://example.com',from:time('2026-10-18T02:59:55'),to:time('2026-10-18T03:00:05'),eligible:true});
+ assert.deepEqual(r.usage,{'2026-10-17':{g:5000},'2026-10-18':{g:5000}});
+ assert.equal(r.stats['2026-10-18']['example.com'],10000);
+ for(const resetMinute of [0,180,300,1439])assert.equal(validateSettings({...s.settings,resetMinute}).resetMinute,resetMinute);
 });

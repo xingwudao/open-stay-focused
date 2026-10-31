@@ -20,6 +20,14 @@ test('serial ticks never double count; restart restores checkpoint',async()=>{
  const d=await c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()});
  assert.equal(d.blocked,true);assert.equal((await c.snapshot()).usage['2026-10-17'].g,10000);
 });
+test('controller settles beneficial foreground visits independently',async()=>{
+ const f=setup(),c=f.controller;const s=await c.snapshot();
+ s.settings.beneficialPool={policy:'largestDeficit',items:[{id:'docs',name:'Docs',url:'https://docs.example.com/',enabled:true,targetMs:600000}]};
+ await c.handle({type:'saveSettings',settings:s.settings,revision:s.revision},trusted);
+ await c.tick({url:'https://docs.example.com/',tabId:1,visits:[{url:'https://docs.example.com/',tabId:1}],beneficialVisits:[{url:'https://docs.example.com/',tabId:1}],eligible:true,now:f.now()});
+ f.advance(5000);await c.tick({url:'https://other.example/',tabId:2,visits:[],beneficialVisits:[],eligible:false,now:f.now()});
+ assert.equal((await c.snapshot()).beneficialUsage['2026-10-17'].docs,5000);
+});
 test('tab transitions charge old URL; gaps and unfocused intervals are excluded',async()=>{
  const f=setup(),c=f.controller;
  await c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()});f.advance(5000);
@@ -51,9 +59,10 @@ test('nuclear snapshot survives restart, blocks mutation and stats clear preserv
  await c.tick({url:'https://example.com',tabId:1,eligible:false,now:f.now()});
  await c.handle({type:'startNuclear',mode:'blocked',minutes:1,startAt:f.now()},trusted);
  for(const cmd of [{type:'cancelScheduledNuclear'},{type:'saveSettings',settings:{...(await c.snapshot()).settings,trackAudio:true},revision:0},{type:'startNuclear',mode:'all',minutes:1}])await assert.rejects(c.handle(cmd,trusted),/active/i);
- await c.handle({type:'clearStats'},trusted);
+ let before=await c.snapshot();before.beneficialUsage={'2026-10-17':{docs:3000}};await f.storage.set(before);
+ const restarted=createController({storage:f.storage,clock:f.now});await restarted.handle({type:'clearStats'},trusted);
  const s=await createController({storage:f.storage,clock:f.now}).snapshot();
- assert.deepEqual(s.stats,{});assert.equal(s.usage['2026-10-17'].g,5000);assert.equal(s.nuclear.mode,'blocked');
+ assert.deepEqual(s.stats,{});assert.equal(s.usage['2026-10-17'].g,5000);assert.equal(s.beneficialUsage['2026-10-17'].docs,3000);assert.equal(s.nuclear.mode,'blocked');
 });
 test('scheduled nuclear captures original patterns; malicious imported fields rejected',async()=>{
  const f=setup(),c=f.controller;
@@ -93,4 +102,15 @@ test('language preference saves independently without changing restrictions or a
  await assert.rejects(f.controller.handle({type:'setLanguage',language:'en',revision:before.revision},trusted),/another page/);
  await assert.rejects(f.controller.handle({type:'setLanguage',language:'bad',revision:after.revision},trusted),/language/);
  await assert.rejects(f.controller.handle({type:'setLanguage',language:'en',revision:after.revision},{}),/trusted/);
+});
+
+test('restart before and after the fixed reset retains history without charging offline time',async()=>{
+ const f=setup();let raw=await f.storage.get();raw.settings.resetMinute=180;raw.usage={'2026-10-17':{g:10000}};raw.stats={'2026-10-17':{'example.com':10000}};await f.storage.set(raw);
+ f.advance(new Date('2026-10-18T02:59:59').getTime()-f.now());
+ let c=createController({storage:f.storage,clock:f.now});
+ assert.equal((await c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()})).blocked,true);
+ f.advance(8*3600000);c=createController({storage:f.storage,clock:f.now});
+ const decision=await c.tick({url:'https://example.com',tabId:1,eligible:true,now:f.now()});
+ assert.equal(decision.blocked,false);assert.equal(decision.remainingMs,10000);
+ const after=await c.snapshot();assert.deepEqual(after.usage,raw.usage);assert.deepEqual(after.stats,raw.stats);
 });

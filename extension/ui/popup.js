@@ -26,7 +26,7 @@ async function load(){
  $('quick-add').disabled=!url;$('quick-allow').hidden=state.settings.hideQuickAllow;$('quick-allow').disabled=!url;
  $('pause').hidden=state.settings.hidePause;$('pause').textContent=t(state.settings.enabled?'Pause restrictions':'Resume restrictions');
  const signature=JSON.stringify([state.settings.language,state.settings.groups.map(g=>[g.id,g.name])]);
- if(signature!==groupSignature){const selected=selectedGroupId??$('target-group').value;selectedGroupId=null;$('target-group').replaceChildren();for(const g of state.settings.groups){const o=element('option',g.name);o.value=g.id;$('target-group').append(o);}const o=element('option',t('New group · 10 min/day'));o.value='new';$('target-group').append(o);if([...$('target-group').options].some(o=>o.value===selected))$('target-group').value=selected;groupSignature=signature;}
+ if(signature!==groupSignature){const selected=selectedGroupId??$('target-group').value;selectedGroupId=null;$('target-group').replaceChildren();for(const g of state.settings.groups){const o=element('option',g.name);o.value=g.id;$('target-group').append(o);}const o=element('option',t('New group · 30 min/day'));o.value='new';$('target-group').append(o);if([...$('target-group').options].some(o=>o.value===selected))$('target-group').value=selected;groupSignature=signature;}
  renderAddState();
  }finally{refreshing=false;}
 }
@@ -36,7 +36,7 @@ $('quick-add').addEventListener('click',()=>change(async()=>{
  const url=webURL(tab?.url);if(!url)throw Error('This page cannot be added.');
  const settings=structuredClone(state.settings);let group=settings.groups.find(g=>g.id===$('target-group').value);
  if(group&&matchesAny(url.href,group.patterns)){notice('Already in this group');return;}
- if(!group){group={id:crypto.randomUUID(),name:t('Distractions'),enabled:true,budgetMs:600000,patterns:[]};settings.groups.push(group);}
+ if(!group){group={id:crypto.randomUUID(),name:t('Distractions'),enabled:true,budgetMs:1800000,patterns:[]};settings.groups.push(group);}
  if(!group.patterns.includes(url.hostname))group.patterns.push(url.hostname);
  await mutate(state,{type:'saveSettings',settings,revision:state.revision});selectedGroupId=group.id;groupSignature='';notice('Website added.');
 }));

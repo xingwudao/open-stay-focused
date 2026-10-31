@@ -13,3 +13,6 @@ test('package is reproducible and contains only extension assets with root manif
  assert.ok(entries.every(n=>!/(node_modules|tests|research|secret|\.git)/.test(n)));
  assert.ok(readFileSync('dist/SHA256SUMS','utf8').includes(createHash('sha256').update(a).digest('hex')));
 });
+test('CI pins a Playwright-supported Ubuntu runner',()=>{
+ assert.match(readFileSync('.github/workflows/ci.yml','utf8'),/runs-on: ubuntu-24\.04/);
+});

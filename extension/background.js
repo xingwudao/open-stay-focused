@@ -2,7 +2,8 @@ import {companionReminder,browsingReminderGroups} from './core/companion.js';
 import {createController} from './controller.js';
 import {evaluate,localDay,budgetDay} from './core/policy.js';
 import {webURL,isLocalFile,usageHost} from './core/patterns.js';
-import {eligibleVisits,pageTimer} from './core/tracking.js';
+import {eligibleVisits,foregroundVisits,pageTimer} from './core/tracking.js';
+import {selectBeneficialDestination} from './core/redirect-policy.js';
 const UI_PATHS=new Set(['/ui/options.html','/ui/popup.html','/ui/blocked.html']);
 const beats=new Map(),injectionAttempts=new Map();
 let popupFocus=null;
@@ -16,7 +17,7 @@ const storage={
  },
  async set(state){
   const persistent=structuredClone(state);
-  if(persistent.checkpoint){delete persistent.checkpoint.url;delete persistent.checkpoint.visits;}
+  if(persistent.checkpoint){delete persistent.checkpoint.url;delete persistent.checkpoint.visits;delete persistent.checkpoint.beneficialVisits;}
   await chrome.storage.local.set({state:persistent});
   try {await chrome.storage.session.set({checkpoint:state.checkpoint??null});}catch{/* a lost cache loses at most an unsettled interval */}
  }
@@ -27,16 +28,26 @@ function trustedUI(sender){
 }
 async function redirect(tab,state){
  if(!tab?.id||!webURL(tab.url))return;
- const decision=evaluate(tab.url,Date.now(),state);
+ const now=Date.now(),decision=evaluate(tab.url,now,state);
  if(decision.blocked)try{
+  if(decision.reason==='quota'){
+   const day=budgetDay(now,state.settings.resetMinute);
+   let destination=null;try{destination=selectBeneficialDestination({pool:state.settings.beneficialPool,usage:state.beneficialUsage[day]??{},currentUrl:tab.url,isEligible:item=>!evaluate(item.url,now,state).blocked});}catch{/* use the block page */}
+   if(destination){await chrome.tabs.update(tab.id,{url:destination.url});return;}
+  }
   const query=new URLSearchParams({reason:decision.reason});
-  if(decision.reason==='quota'){query.set('day',budgetDay(Date.now(),state.settings.resetMinute));for(const id of decision.groupIds)query.append('group',id);}
+  if(decision.reason==='quota'){query.set('day',budgetDay(now,state.settings.resetMinute));for(const id of decision.groupIds)query.append('group',id);}
   await chrome.tabs.update(tab.id,{url:chrome.runtime.getURL(`ui/blocked.html?${query}`)});}catch{/* tab closed */}
 }
-async function claimCompanion(state,groupIds,stage){
+async function claimCompanion(state,groupIds,stage,currentUrl){
  if(!state.settings.companionEnabled)return null;
  const {companionLedger}=await chrome.storage.local.get('companionLedger');
- const result=companionReminder(state,Date.now(),companionLedger,groupIds,stage);
+ const now=Date.now(),result=companionReminder(state,now,companionLedger,groupIds,stage);
+ if(result.reminder&&stage==='browsing'&&currentUrl){
+  const day=budgetDay(now,state.settings.resetMinute);
+  let destination=null;try{destination=selectBeneficialDestination({pool:state.settings.beneficialPool,usage:state.beneficialUsage[day]??{},currentUrl,isEligible:item=>!evaluate(item.url,now,state).blocked});}catch{/* keep the reminder without a link */}
+  if(destination)result.reminder.destination={name:destination.name,url:destination.url};
+ }
  if(result.reminder&&JSON.stringify(result.ledger)!==JSON.stringify(companionLedger))await chrome.storage.local.set({companionLedger:result.ledger});
  return result.reminder;
 }
@@ -84,7 +95,8 @@ async function sample(){
  const popupAlive=popupFocus&&popupFocus.windowId===win?.id&&now>=popupFocus.at&&now-popupFocus.at<1500
   &&(await chrome.runtime.getContexts({contextTypes:['POPUP'],documentIds:[popupFocus.documentId]})).length>0;
  const visits=eligibleVisits({tabs,win,idle,beats,now,trackAudio:before.settings.trackAudio,popupFocused:!!popupAlive});
- await controller.tick({url:isLocalFile(tab?.url)?'file:///':tab?.url??'',tabId:tab?.id,visits,eligible:visits.length>0,now});
+ const beneficialVisits=foregroundVisits({tabs,win,idle,beats,now,popupFocused:!!popupAlive});
+ await controller.tick({url:isLocalFile(tab?.url)?'file:///':tab?.url??'',tabId:tab?.id,visits,beneficialVisits,eligible:visits.length>0,now});
  const state=await controller.snapshot();setTicker(visits.length>0);await badge(tab,state);
  return {tab,tabs,visits,state,idle,hasHeartbeat:!!(tab&&beats.get(tab.id)?.url===tab.url&&now-beats.get(tab.id).at<15000)};
 }
@@ -131,7 +143,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   const win=await chrome.windows.getLastFocused();
   const foreground=tab.active&&win.focused&&tab.windowId===win.id&&timer.running;
   return {...timer,companionEnabled:live.state.settings.companionEnabled,companionSound:live.state.settings.companionSound,
-   reminder:message.type==='heartbeat'&&foreground?await claimCompanion(live.state,browsingReminderGroups(tab.url,live.state,Date.now()),'browsing'):null};
+   reminder:message.type==='heartbeat'&&foreground?await claimCompanion(live.state,browsingReminderGroups(tab.url,live.state,Date.now()),'browsing',tab.url):null};
  }).then(data=>respond({ok:true,data}),error=>respond({ok:false,error:error.message}));return true;
 });
 chrome.tabs.onActivated.addListener(schedule);

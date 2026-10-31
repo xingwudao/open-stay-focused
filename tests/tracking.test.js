@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {eligibleVisits,pageTimer} from '../extension/core/tracking.js';
+import {eligibleVisits,foregroundVisits,pageTimer} from '../extension/core/tracking.js';
 import {initialState} from '../extension/core/accounting.js';
 const now=100000,win={id:1,focused:true,state:'normal'};
 const tabs=[{id:1,windowId:1,active:true,url:'https://a.example/work'},{id:2,windowId:1,active:false,url:'https://b.example/',audible:true}];
@@ -13,6 +13,14 @@ test('foreground and optional audio tracking use browser eligibility',()=>{
  assert.deepEqual(eligibleVisits({tabs,win,idle:'locked',beats,now,trackAudio:true}),[]);
  assert.equal(eligibleVisits({tabs,win,idle:'idle',beats,now,trackAudio:true}).length,1);
  assert.equal(eligibleVisits({tabs,win,idle:'active',beats,now:now+16000,trackAudio:false}).length,0);
+});
+test('beneficial foreground visits never include audible background tabs',()=>{
+ const input={tabs,win,idle:'active',beats,now,popupFocused:false};
+ assert.deepEqual(foregroundVisits(input),[{url:tabs[0].url,tabId:1}]);
+ for(const idle of ['idle','locked'])assert.deepEqual(foregroundVisits({...input,idle}),[]);
+ for(const change of [{focused:false},{state:'minimized'}])assert.deepEqual(foregroundVisits({...input,win:{...win,...change}}),[]);
+ for(const change of [{active:false},{status:'loading'},{discarded:true}])assert.deepEqual(foregroundVisits({...input,tabs:[{...tabs[0],...change},tabs[1]]}),[]);
+ assert.deepEqual(foregroundVisits({...input,win:{...win,focused:false},popupFocused:true}),[{url:tabs[0].url,tabId:1}]);
 });
 test('page timer payload exposes only current-page totals and display preference',()=>{
  const state=initialState();state.settings.showTimer=true;state.settings.groups=[{id:'g',name:'Private name',enabled:true,budgetMs:60000,patterns:['a.example']}];

@@ -20,15 +20,35 @@ async function save(s){const state=await send({type:'getState'}),operation={type
 const group=(patterns,budgetMs=0)=>({id:'test',name:'Test group',enabled:true,patterns,budgetMs});
 test('loads extension and UI creates a group, persists and exports settings',async()=>{
  await expect(page.getByRole('heading',{name:'Your attention, on your terms.'})).toBeVisible();
- await page.getByLabel('Group name').fill('Reading');await page.getByLabel('Daily minutes').fill('10');
+ await page.getByLabel('Group name').fill('Reading');await expect(page.getByLabel('Daily minutes')).toHaveValue('30');
  await page.getByLabel('Website patterns').fill('example.com');
  await page.getByRole('button',{name:'Add group',exact:true}).click();
  await expect(page.getByText('Reading',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Save settings',exact:true}).click();
- expect((await settings()).groups[0].name).toBe('Reading');
+ expect((await settings()).groups[0]).toMatchObject({name:'Reading',budgetMs:1800000});
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'Export settings'}).click();
  expect((await download).suggestedFilename()).toMatch(/\.json$/);
  await page.reload();await expect(page.getByText('Reading',{exact:true})).toBeVisible();
+});
+test('beneficial destinations edit directly and round-trip through settings',async()=>{
+ await expect(page.getByRole('heading',{name:'Better destinations'})).toBeVisible();
+ await expect(page.getByText('Items on the same hostname share observed foreground time.')).toBeVisible();
+ await page.getByLabel('Destination name').fill('Documentation');
+ await page.getByLabel('Destination URL').fill('https://example.com/guide?q=1#start');
+ await page.getByLabel('Daily minimum minutes').fill('25');
+ await page.getByRole('button',{name:'Add destination'}).click();
+ await page.locator('#beneficial-name').fill('Learning');await page.locator('#beneficial-url').fill('https://learn.example/');await page.locator('#beneficial-minutes').fill('40');await page.getByRole('button',{name:'Add destination'}).click();
+ await page.getByLabel('Redirect policy').selectOption('random');
+ await page.locator('#beneficial-sites').getByRole('button',{name:'Remove destination'}).first().click();
+ await expect(page.getByLabel('Redirect policy')).toHaveValue('random');
+ await page.locator('#language').selectOption('zh-CN');
+ await expect(page.getByLabel('跳转策略')).toHaveValue('random');
+ await page.locator('#save').click();
+ const saved=await settings();expect(saved.beneficialPool.policy).toBe('random');
+ expect(saved.beneficialPool.items[0]).toMatchObject({name:'Learning',url:'https://learn.example/',targetMs:2400000,enabled:true});
+ await expect(page.getByRole('heading',{name:'有益网站池'})).toBeVisible();
+ await expect(page.locator('#beneficial-sites').getByLabel('每日最低分钟数')).toHaveValue('40');
+ await page.reload();await expect(page.locator('#beneficial-sites').getByLabel('名称')).toHaveValue('Learning');
 });
 test('quota blocks new pages; allowlist bypass and SPA route check',async()=>{
  const s=await settings();s.groups=[group(['127.0.0.1/blocked'])];await save(s);
@@ -147,8 +167,9 @@ test('popup quick-add saves the active website through the protected settings co
  // Supply the real site-tab result at the browser API boundary only.
  await popup.addInitScript(tab=>{const send=chrome.runtime.sendMessage.bind(chrome.runtime);chrome.runtime.sendMessage=async command=>{const response=await send(command);if(command.type==='getLiveState'&&response.ok)response.data.tab=tab;return response;};},tab);
  await popup.goto(base+'/ui/popup.html');await expect(popup.locator('#site')).toHaveText('127.0.0.1');
+ await expect(popup.locator('#target-group')).toContainText('New group · 30 min/day');
  await popup.getByRole('button',{name:'Add website'}).click();await expect(popup.getByRole('status')).toContainText('added');
- expect((await settings()).groups[0].patterns).toEqual(['127.0.0.1']);
+ expect((await settings()).groups[0]).toMatchObject({patterns:['127.0.0.1'],budgetMs:1800000});
 });
 test('adapter excludes idle and unfocused intervals with controlled OS API responses',async()=>{
  const s=await settings();s.groups=[group(['127.0.0.1'],600000)];await save(s);
@@ -251,7 +272,7 @@ test('delayed schedule changes remain visible and CSV exports local statistics',
 
 
 test('default protections are enabled and allowance increases require every confirmation',async()=>{
- expect(initialSettings.schemaVersion).toBe(2);expect(initialSettings.challengeEnabled).toBe(true);expect(initialSettings.hidePause).toBe(true);expect(initialSettings.hideQuickAllow).toBe(true);
+ expect(initialSettings.schemaVersion).toBe(3);expect(initialSettings.challengeEnabled).toBe(true);expect(initialSettings.hidePause).toBe(true);expect(initialSettings.hideQuickAllow).toBe(true);
  const s=await settings();s.groups=[group(['example.com'],60000)];await save(s);await page.reload();
  await expect(page.locator('#pause')).toBeHidden();await page.getByLabel('Minutes per day',{exact:true}).fill('2');await page.locator('#save').click();
  for(let i=1;i<=8;i++){await expect(page.getByRole('heading',{name:`Confirm change ${i} of 8`})).toBeVisible();expect((await settings()).groups[0].budgetMs).toBe(60000);await page.getByRole('button',{name:'Continue',exact:true}).click();}
@@ -367,7 +388,7 @@ test('group rename saves without challenge during focus but mixed relaxation rem
  await expect(page.getByRole('alert')).toContainText('nuclear session');
  expect((await settings()).groups[0].name).toBe('Renamed during focus');
  await page.locator('#language').selectOption('zh-CN');
- await expect(page.locator('#session-banner')).toContainText('仅可保存分组改名');
+ await expect(page.locator('#session-banner')).toContainText('限制性设置保持锁定；有益网站池仍可编辑');
 });
 test('exhausted group can be renamed in settings without restoring its budget',async()=>{
  const s=await settings();s.groups=[group(['127.0.0.1'],2000)];s.challengeEnabled=true;await save(s);
@@ -399,10 +420,12 @@ test('settings footer uses the installed version in both languages',async()=>{
 });
 
 test('otter milestones run without popup, persist across navigation, and stay on blocked page',async()=>{
- const s=await settings();s.groups=[group(['127.0.0.1'],20000)];s.companionSound=false;await save(s);
+ const s=await settings();s.groups=[group(['127.0.0.1'],20000)];s.companionSound=false;s.beneficialPool={policy:'largestDeficit',items:[{id:'learn',name:'Learn',url:'http://localhost:4173/learn',enabled:true,targetMs:1800000}]};await save(s);
  const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
  const pet=site.locator('#open-stay-focused-companion');
  await expect(pet).toContainText('Half your budget used',{timeout:16000});
+ await expect(pet.getByRole('link',{name:'Visit Learn instead'})).toBeVisible();
+ const withoutPool=await settings();withoutPool.beneficialPool.items=[];await save(withoutPool);
  await expect(pet).toHaveCount(0,{timeout:4000});
  await site.reload();
  await expect(pet).toContainText('80% used',{timeout:12000});
@@ -434,6 +457,17 @@ test('otter preview is localized, dismissible, reduced-motion aware and settings
  await page.locator('#companion-enabled').uncheck();await page.locator('#save').click();
  await expect(page.getByRole('dialog')).not.toBeVisible();
  await expect.poll(async()=> (await settings()).companionEnabled).toBe(false);
+});
+test('otter recommendation link is localized, accessible and uses the current tab',async()=>{
+ const destination={name:'A very long documentation destination that should wrap safely',url:'http://localhost:4173/learn'};
+ await page.evaluate(destination=>OpenStayCompanion.show({level:50,groupName:'Focus',language:'zh-CN',sound:false,durationMs:10000,destination}),destination);
+ let pet=page.locator('#open-stay-focused-companion'),link=pet.getByRole('link',{name:`去看看${destination.name}`});await expect(link).toBeVisible();
+ await link.focus();await expect(link).toBeFocused();expect(await link.evaluate(el=>getComputedStyle(el).overflowWrap)).toBe('anywhere');
+ await page.evaluate(()=>OpenStayCompanion.stop());
+ await page.evaluate(()=>{const base=document.createElement('base');base.target='_blank';document.head.append(base);});
+ await page.evaluate(destination=>OpenStayCompanion.show({level:80,groupName:'Focus',language:'en',sound:false,durationMs:10000,destination}),destination);
+ pet=page.locator('#open-stay-focused-companion');link=pet.getByRole('link',{name:`Visit ${destination.name} instead`});await expect(link).toBeVisible();
+ const pages=context.pages().length;await link.click();await expect(page).toHaveURL(destination.url);expect(context.pages()).toHaveLength(pages);
 });
 test('otter preview plays one short synthesized sound after a user click and releases audio',async()=>{
  await page.evaluate(()=>{const Native=AudioContext;globalThis.AudioContext=class extends Native{constructor(...args){super(...args);globalThis.testOtterAudio=this;}};});
