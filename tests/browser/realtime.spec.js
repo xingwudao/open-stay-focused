@@ -19,6 +19,15 @@ test.afterEach(async({},testInfo)=>{
 });
 async function state(){return page.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'getState'});if(!r.ok)throw Error(r.error);return r.data;});}
 async function setup(audio=false){await page.evaluate(async audio=>{const {data:s}=await chrome.runtime.sendMessage({type:'getState'});s.settings.trackAudio=audio;s.settings.groups=[{id:'live',name:'Live fixture',enabled:true,budgetMs:600000,patterns:['127.0.0.1']}];const r=await chrome.runtime.sendMessage({type:'saveSettings',settings:s.settings,revision:s.revision});if(!r.ok)throw Error(r.error);},audio);}
+test('quota exhaustion redirects to a safe beneficial destination in the same tab',async()=>{
+ await page.evaluate(async()=>{const {data:s}=await chrome.runtime.sendMessage({type:'getState'});s.settings.groups=[{id:'live',name:'Live fixture',enabled:true,budgetMs:1000,patterns:['127.0.0.1']}];s.settings.beneficialPool={policy:'largestDeficit',items:[{id:'learn',name:'Learn',url:'http://localhost:4173/learn',enabled:true,targetMs:1800000}]};const r=await chrome.runtime.sendMessage({type:'saveSettings',settings:s.settings,revision:s.revision});if(!r.ok)throw Error(r.error);});
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
+ await expect(site).toHaveURL('http://localhost:4173/learn',{timeout:10000});await site.waitForTimeout(1500);await expect(site).toHaveURL('http://localhost:4173/learn');
+});
+test('unsafe beneficial destinations retain the quota block page',async()=>{
+ await page.evaluate(async()=>{const {data:s}=await chrome.runtime.sendMessage({type:'getState'});s.settings.groups=[{id:'live',name:'Live fixture',enabled:true,budgetMs:0,patterns:['127.0.0.1']}];s.settings.beneficialPool={policy:'random',items:[{id:'blocked',name:'Blocked too',url:'http://127.0.0.1:4173/other',enabled:true,targetMs:1800000}]};const r=await chrome.runtime.sendMessage({type:'saveSettings',settings:s.settings,revision:s.revision});if(!r.ok)throw Error(r.error);});
+ const site=await context.newPage();await site.goto('http://127.0.0.1:4173/').catch(()=>{});await expect(site).toHaveURL(/ui\/blocked\.html/);
+});
 test('website has no floating timer while background usage keeps accumulating',async()=>{
  await setup();
  // An existing installation can retain the old preference; it must not add UI.

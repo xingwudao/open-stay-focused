@@ -3,6 +3,7 @@ import {createController} from './controller.js';
 import {evaluate,localDay,budgetDay} from './core/policy.js';
 import {webURL,isLocalFile,usageHost} from './core/patterns.js';
 import {eligibleVisits,foregroundVisits,pageTimer} from './core/tracking.js';
+import {selectBeneficialDestination} from './core/redirect-policy.js';
 const UI_PATHS=new Set(['/ui/options.html','/ui/popup.html','/ui/blocked.html']);
 const beats=new Map(),injectionAttempts=new Map();
 let popupFocus=null;
@@ -27,10 +28,15 @@ function trustedUI(sender){
 }
 async function redirect(tab,state){
  if(!tab?.id||!webURL(tab.url))return;
- const decision=evaluate(tab.url,Date.now(),state);
+ const now=Date.now(),decision=evaluate(tab.url,now,state);
  if(decision.blocked)try{
+  if(decision.reason==='quota'){
+   const day=budgetDay(now,state.settings.resetMinute);
+   let destination=null;try{destination=selectBeneficialDestination({pool:state.settings.beneficialPool,usage:state.beneficialUsage[day]??{},currentUrl:tab.url,isEligible:item=>!evaluate(item.url,now,state).blocked});}catch{/* use the block page */}
+   if(destination){await chrome.tabs.update(tab.id,{url:destination.url});return;}
+  }
   const query=new URLSearchParams({reason:decision.reason});
-  if(decision.reason==='quota'){query.set('day',budgetDay(Date.now(),state.settings.resetMinute));for(const id of decision.groupIds)query.append('group',id);}
+  if(decision.reason==='quota'){query.set('day',budgetDay(now,state.settings.resetMinute));for(const id of decision.groupIds)query.append('group',id);}
   await chrome.tabs.update(tab.id,{url:chrome.runtime.getURL(`ui/blocked.html?${query}`)});}catch{/* tab closed */}
 }
 async function claimCompanion(state,groupIds,stage){
