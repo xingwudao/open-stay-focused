@@ -6,17 +6,24 @@ import {initialState} from '../extension/core/accounting.js';
 import {setLanguage,t} from '../extension/ui/i18n.js';
 test('language is validated and legacy settings default to English',()=>{
  const s=defaultSettings();assert.equal(s.language,'en');
- const old=structuredClone(s);old.schemaVersion=1;old.challengeEnabled=false;for(const k of ['enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language'])delete old[k];
+ const old=structuredClone(s);old.schemaVersion=1;old.challengeEnabled=false;for(const k of ['enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language','beneficialPool'])delete old[k];
  assert.equal(validateSettings(old).language,'en');
  assert.equal(validateSettings({...s,language:'zh-CN'}).language,'zh-CN');
  for(const language of ['fr',null,undefined,'zh'])assert.throws(()=>validateSettings({...s,language}));
 });
 test('stored legacy state migrates without changing quotas or nuclear deadline',async()=>{
- let stored=initialState();stored.settings.schemaVersion=1;stored.settings.challengeEnabled=false;for(const k of ['enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language'])delete stored.settings[k];stored.usage={'2026-10-17':{g:2345}};
+ let stored=initialState();stored.settings.schemaVersion=1;stored.settings.challengeEnabled=false;for(const k of ['enabled','showTimer','trackAudio','hidePause','hideQuickAllow','challengeText','language','beneficialPool'])delete stored.settings[k];stored.usage={'2026-10-17':{g:2345}};
  stored.nuclear={startAt:0,endAt:9999999999999,mode:'all',policySnapshot:structuredClone(stored.settings)};
  const c=createController({clock:()=>new Date('2026-10-17T12:00:00').getTime(),storage:{get:async()=>structuredClone(stored),set:async s=>stored=structuredClone(s)}});
- const state=await c.snapshot();assert.equal(state.settings.language,'en');assert.equal(stored.settings.language,'en');assert.equal(stored.settings.challengeEnabled,true);assert.equal(stored.settings.schemaVersion,2);
+ const state=await c.snapshot();assert.equal(state.settings.language,'en');assert.equal(stored.settings.language,'en');assert.equal(stored.settings.challengeEnabled,true);assert.equal(stored.settings.schemaVersion,3);assert.deepEqual(stored.settings.beneficialPool,{policy:'largestDeficit',items:[]});
  assert.equal(state.usage['2026-10-17'].g,2345);assert.equal(state.nuclear.endAt,9999999999999);
+});
+test('schema 2 adds an empty beneficial pool without changing existing rules',()=>{
+ const current=defaultSettings();const old=structuredClone(current);old.schemaVersion=2;delete old.beneficialPool;
+ old.groups=[{id:'g',name:'Focus',enabled:true,patterns:['example.com'],budgetMs:12345}];old.resetMinute=240;
+ const migrated=validateSettings(old);
+ assert.equal(migrated.schemaVersion,3);assert.deepEqual(migrated.beneficialPool,{policy:'largestDeficit',items:[]});
+ assert.deepEqual(migrated.groups,old.groups);assert.equal(migrated.resetMinute,240);
 });
 test('Chinese challenge uses saved language, including language-switching writes',async()=>{
  let stored=initialState();stored.settings.language='zh-CN';stored.settings.challengeEnabled=true;

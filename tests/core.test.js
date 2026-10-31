@@ -24,6 +24,29 @@ test('settings strictly validate and cap import size',()=>{
  {...s,schedule:{days:[1],intervals:[[20,20]]}},{...s,allowlist:['x'.repeat(262145)]}]) assert.throws(()=>validateSettings(bad));
  assert.equal(validateSettings({...s,groups:[{...group(),budgetMs:0}]}).groups[0].budgetMs,0);
 });
+test('beneficial pool validates and normalizes local destination settings',()=>{
+ const s=defaultSettings();
+ assert.equal(s.schemaVersion,3);assert.deepEqual(s.beneficialPool,{policy:'largestDeficit',items:[]});
+ const item={id:'read-1',name:'  Read docs  ',url:'https://example.com/guide?q=1#chapter',enabled:true,targetMs:1800000};
+ const valid=validateSettings({...s,beneficialPool:{policy:'random',items:[item]}});
+ assert.deepEqual(valid.beneficialPool,{policy:'random',items:[{...item,name:'Read docs',url:'https://example.com/guide?q=1'}]});
+ const badItems=[
+  {...item,id:'bad id'},
+  {...item,name:''},
+  {...item,name:'x'.repeat(81)},
+  {...item,url:'ftp://example.com'},
+  {...item,url:'https://user:pass@example.com'},
+  {...item,url:`https://example.com/${'x'.repeat(2040)}`},
+  {...item,targetMs:59999},
+  {...item,targetMs:0},
+  {...item,targetMs:86460000},
+  {...item,extra:true}
+ ];
+ for(const bad of badItems)assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'random',items:[bad]}}));
+ assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'unknown',items:[]}}));
+ assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'random',items:[item,{...item}]}}));
+ assert.throws(()=>validateSettings({...s,beneficialPool:{policy:'random',items:Array.from({length:101},(_,i)=>({...item,id:`i-${i}`}))}}));
+});
 test('overnight intervals belong to start day and reset uses local calendar',()=>{
  const schedule={days:[1],intervals:[[1320,120]]};
  assert.equal(isScheduled(time('2026-10-19T23:00:00'),schedule),true);
