@@ -32,8 +32,21 @@ test('summaries keep legacy duration, range/filter counts and hourly/daily serie
  const b=summarizeUsage(s,{range:'week',now:time(),search:'EXAMPLE'});assert.equal(b.totalMs,2500);assert.equal(b.days.length,7);assert.equal(b.rows[0].sessions,2);
 });
 test('retention prunes all history stores but never changes current budget',()=>{
- const s=initialState();for(const field of ['stats','sessionCounts','hourly','usage'])s[field]={'2020-01-01':{},'2026-10-17':{}};s.usage['2026-10-17'].g=3000;
- const out=pruneHistory(s,time());for(const field of ['stats','sessionCounts','hourly','usage'])assert.equal(out[field]['2020-01-01'],undefined);assert.equal(out.usage['2026-10-17'].g,3000);
+ const s=initialState();for(const field of ['stats','sessionCounts','hourly','usage','beneficialUsage'])s[field]={'2020-01-01':{},'2026-10-17':{}};s.usage['2026-10-17'].g=3000;
+ const out=pruneHistory(s,time());for(const field of ['stats','sessionCounts','hourly','usage','beneficialUsage'])assert.equal(out[field]['2020-01-01'],undefined);assert.equal(out.usage['2026-10-17'].g,3000);
+});
+test('beneficial goals use an independent reset-day foreground ledger',()=>{
+ const s=initialState();assert.deepEqual(s.beneficialUsage,{});s.settings.resetMinute=180;
+ s.settings.beneficialPool={policy:'largestDeficit',items:[
+  {id:'docs',name:'Docs',url:'https://example.com/docs',enabled:true,targetMs:600000},
+  {id:'same',name:'Same host',url:'https://example.com/other',enabled:true,targetMs:600000},
+  {id:'off',name:'Off',url:'https://example.com/',enabled:false,targetMs:600000},
+  {id:'other',name:'Other',url:'https://other.test/',enabled:true,targetMs:600000}
+ ]};
+ const from=new Date(2026,9,18,2,59,59,500).getTime();
+ const out=accountIntervalMany(s,{visits:[],beneficialVisits:[{url:'https://sub.example.com/private?q=secret',tabId:1}],from,to:from+1000});
+ assert.deepEqual(out.beneficialUsage,{'2026-10-17':{docs:500,same:500},'2026-10-18':{docs:500,same:500}});
+ assert.equal(JSON.stringify(out.beneficialUsage).includes('secret'),false);
 });
 test('CSV escapes spreadsheet formulas, delimiters, quotes and newlines',()=>{
  const csv=csvUsage({rows:[{host:'=cmd,"evil"\nnext',ms:1500,sessions:2}]});assert.ok(csv.startsWith('Host,Duration seconds,Sessions\r\n'));assert.ok(csv.includes('"\'=cmd,""evil""\nnext",1.5,2'));

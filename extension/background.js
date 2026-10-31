@@ -2,7 +2,7 @@ import {companionReminder,browsingReminderGroups} from './core/companion.js';
 import {createController} from './controller.js';
 import {evaluate,localDay,budgetDay} from './core/policy.js';
 import {webURL,isLocalFile,usageHost} from './core/patterns.js';
-import {eligibleVisits,pageTimer} from './core/tracking.js';
+import {eligibleVisits,foregroundVisits,pageTimer} from './core/tracking.js';
 const UI_PATHS=new Set(['/ui/options.html','/ui/popup.html','/ui/blocked.html']);
 const beats=new Map(),injectionAttempts=new Map();
 let popupFocus=null;
@@ -16,7 +16,7 @@ const storage={
  },
  async set(state){
   const persistent=structuredClone(state);
-  if(persistent.checkpoint){delete persistent.checkpoint.url;delete persistent.checkpoint.visits;}
+  if(persistent.checkpoint){delete persistent.checkpoint.url;delete persistent.checkpoint.visits;delete persistent.checkpoint.beneficialVisits;}
   await chrome.storage.local.set({state:persistent});
   try {await chrome.storage.session.set({checkpoint:state.checkpoint??null});}catch{/* a lost cache loses at most an unsettled interval */}
  }
@@ -84,7 +84,8 @@ async function sample(){
  const popupAlive=popupFocus&&popupFocus.windowId===win?.id&&now>=popupFocus.at&&now-popupFocus.at<1500
   &&(await chrome.runtime.getContexts({contextTypes:['POPUP'],documentIds:[popupFocus.documentId]})).length>0;
  const visits=eligibleVisits({tabs,win,idle,beats,now,trackAudio:before.settings.trackAudio,popupFocused:!!popupAlive});
- await controller.tick({url:isLocalFile(tab?.url)?'file:///':tab?.url??'',tabId:tab?.id,visits,eligible:visits.length>0,now});
+ const beneficialVisits=foregroundVisits({tabs,win,idle,beats,now,popupFocused:!!popupAlive});
+ await controller.tick({url:isLocalFile(tab?.url)?'file:///':tab?.url??'',tabId:tab?.id,visits,beneficialVisits,eligible:visits.length>0,now});
  const state=await controller.snapshot();setTicker(visits.length>0);await badge(tab,state);
  return {tab,tabs,visits,state,idle,hasHeartbeat:!!(tab&&beats.get(tab.id)?.url===tab.url&&now-beats.get(tab.id).at<15000)};
 }

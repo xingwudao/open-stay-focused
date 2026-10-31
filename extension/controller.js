@@ -9,7 +9,7 @@ export function createController({storage,clock=Date.now}) {
   function settle(input,now){
     const previous=input.checkpoint;if(!previous)return structuredClone(input);
     const visits=previous.visits??(previous.eligible?[{url:previous.url,tabId:previous.tabId}]:[]);
-    const next=accountIntervalMany(input,{visits,from:previous.at,to:now,eligible:previous.eligible??true});
+    const next=accountIntervalMany(input,{visits,beneficialVisits:previous.beneficialVisits??[],from:previous.at,to:now,eligible:previous.eligible??true});
     next.checkpoint={...previous,at:Math.max(now,previous.at)};return next;
   }
   function refreshCheckpoint(next,now){
@@ -88,10 +88,10 @@ export function createController({storage,clock=Date.now}) {
   const tick=input=>serial(async()=>{
     const current=await load(),now=input.now??clock(),previous=current.checkpoint;
     const visits=previous?.visits??(previous?.eligible?[{url:previous.url,tabId:previous.tabId}]:[]);
-    const next=previous?accountIntervalMany(current,{visits,from:previous.at,to:now,eligible:previous.eligible??true}):structuredClone(current);
+    const next=previous?accountIntervalMany(current,{visits,beneficialVisits:previous.beneficialVisits??[],from:previous.at,to:now,eligible:previous.eligible??true}):structuredClone(current);
     const decision=evaluate(input.url,now,next);
     const candidates=input.visits??(input.eligible?[{url:input.url,tabId:input.tabId}]:[]);
-    next.checkpoint={at:Math.max(now,previous?.at??now),tabId:input.tabId??null,url:input.url??'',eligible:input.visits?true:!!input.eligible&&!decision.blocked,visits:candidates.filter(v=>!evaluate(v.url,now,next).blocked).map(v=>({url:v.url,tabId:v.tabId??null}))};
+    next.checkpoint={at:Math.max(now,previous?.at??now),tabId:input.tabId??null,url:input.url??'',eligible:input.visits?true:!!input.eligible&&!decision.blocked,visits:candidates.filter(v=>!evaluate(v.url,now,next).blocked).map(v=>({url:v.url,tabId:v.tabId??null})),beneficialVisits:(input.beneficialVisits??[]).map(v=>({url:v.url,tabId:v.tabId??null}))};
     await commit(next);return decision;
   });
   return {snapshot,handle,tick};
