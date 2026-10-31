@@ -1,6 +1,6 @@
 # Privacy policy
 
-Effective: 2026-10-25. Applies to Open Stay Focused 0.3.0 and 0.3.1.
+Effective: 2026-10-25. Applies to Open Stay Focused 0.3.0 through 0.3.2.
 
 Open Stay Focused has no backend, account, advertising SDK or analytics service.
 The extension does not send settings, usage or page content to its developers.

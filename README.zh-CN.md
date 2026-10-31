@@ -27,7 +27,7 @@
 ## 安装方法
 
 1. 从 [GitHub Releases](https://github.com/xingwudao/open-stay-focused/releases/latest)
-   下载 `open-stay-focused-0.3.1.zip`。
+   下载 `open-stay-focused-0.3.2.zip`。
 2. 解压到准备长期保留的文件夹。
 3. 打开 `chrome://extensions`，启用“开发者模式”，选择“加载已解压的扩展程序”，
    选中包含 `manifest.json` 的解压文件夹。
