@@ -17,7 +17,7 @@
    setTimeout(()=>{if(audio===ctx)silence();},500);
   }catch{/* Visual reminders remain available when audio is unavailable. */}
  }
- function show({level,groupName,language,sound,durationMs}){
+ function show({level,groupName,language,sound,durationMs,destination}){
   stop();const zh=language==='zh-CN',reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   host=document.createElement('div');host.id='open-stay-focused-companion';
   host.style.cssText='all:initial!important;position:fixed!important;inset:0!important;z-index:2147483647!important;pointer-events:none!important;';
@@ -25,11 +25,11 @@
   root.innerHTML=`<style>
    :host{color-scheme:light}*{box-sizing:border-box}.pet{position:absolute;width:184px;max-width:95vw;pointer-events:auto;text-align:center;font:13px/1.5 system-ui,sans-serif;color:#203d36;filter:drop-shadow(0 5px 10px #203d3622)}
    .note{background:#fffef5;border:1px solid #c6d3bb;border-radius:16px;padding:10px 24px 10px 12px;text-align:left;overflow-wrap:anywhere}.message{margin:0}.name{font-size:11px;opacity:.7;max-height:33px;overflow:hidden;margin-bottom:3px}
-   button{font:inherit;color:inherit;cursor:pointer;border:0;background:transparent}button:focus-visible{outline:2px solid #386c52;outline-offset:2px}.close{position:absolute;right:4px;top:3px;font-size:19px}.animal{display:block;padding:0;margin:0 auto;width:100px;height:104px}svg{width:100%;height:100%}.listen{font-size:11px;text-decoration:underline;padding:2px 0}
+   button{font:inherit;color:inherit;cursor:pointer;border:0;background:transparent}button:focus-visible,a:focus-visible{outline:2px solid #386c52;outline-offset:2px}.close{position:absolute;right:4px;top:3px;font-size:19px}.animal{display:block;padding:0;margin:0 auto;width:100px;height:104px}svg{width:100%;height:100%}.listen{font-size:11px;text-decoration:underline;padding:2px 0}.destination{display:block;margin-top:6px;color:#285f50;font-weight:650;overflow-wrap:anywhere}
    .body{transform-origin:60px 100px;animation:breathe 2.6s ease-in-out infinite}.head{transform-origin:60px 65px;animation:nod 3.2s ease-in-out infinite}.tail{transform-origin:76px 92px;animation:tail 2.3s ease-in-out infinite}.foot{animation:step .9s ease-in-out infinite}.foot.right{animation-delay:-.45s}.paw{transform-box:fill-box;transform-origin:center;animation:paw 1.8s ease-in-out infinite}.paw.right{animation-delay:-.9s}
    @keyframes breathe{50%{transform:translateY(-2px) scaleY(1.025)}}@keyframes nod{25%{transform:rotate(-5deg) translateY(-1px)}75%{transform:rotate(4deg)}}@keyframes tail{50%{transform:rotate(-9deg)}}@keyframes step{50%{transform:translateY(-3px)}}@keyframes paw{50%{translate:0 -2px}}
    @media(prefers-reduced-motion:reduce){.body,.head,.tail,.foot,.paw{animation:none}}
-  </style><div class="pet"><div class="note" role="status"><div class="name"></div><p class="message"></p><button class="close" type="button">×</button><button class="listen" type="button" hidden></button></div><button class="animal" type="button"><svg viewBox="0 0 120 126" aria-hidden="true">
+  </style><div class="pet"><div class="note" role="status"><div class="name"></div><p class="message"></p><a class="destination" hidden></a><button class="close" type="button">×</button><button class="listen" type="button" hidden></button></div><button class="animal" type="button"><svg viewBox="0 0 120 126" aria-hidden="true">
    <path class="tail" d="M79 85Q120 105 91 115Q80 116 68 104" fill="#876449"/>
    <g class="body"><ellipse cx="59" cy="86" rx="31" ry="34" fill="#88664c"/><ellipse cx="59" cy="86" rx="21" ry="25" fill="#d9bd8f"/></g>
    <ellipse class="foot" cx="39" cy="113" rx="14" ry="7" fill="#674d3b"/><ellipse class="foot right" cx="77" cy="113" rx="14" ry="7" fill="#674d3b"/>
@@ -42,6 +42,8 @@
   </svg></button></div>`;
   root.querySelector('.name').textContent=groupName;
   root.querySelector('.message').textContent=zh?({50:'额度已用一半，伸个懒腰吧。',80:'额度已用八成，慢慢收个尾吧。',100:'今天就到这里，我陪你歇一会儿。'}[level]):({50:'Half your budget used. A little stretch?',80:'80% used. Time to wrap up gently.',100:'All done for today. Let’s take a breath.'}[level]);
+  const destinationLink=root.querySelector('.destination');
+  if(destination){destinationLink.hidden=false;destinationLink.href=destination.url;destinationLink.textContent=zh?`去看看${destination.name}`:`Visit ${destination.name} instead`;}
   for(const button of root.querySelectorAll('.close,.animal')){button.setAttribute('aria-label',zh?'收起水獭提醒':'Dismiss otter reminder');button.addEventListener('click',stop);}
   const listen=root.querySelector('.listen');listen.hidden=!sound;listen.textContent=zh?'听一声':'Play chirp';listen.addEventListener('click',chirp);
   (document.body??document.documentElement).append(host);

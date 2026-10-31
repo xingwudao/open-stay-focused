@@ -39,10 +39,15 @@ async function redirect(tab,state){
   if(decision.reason==='quota'){query.set('day',budgetDay(now,state.settings.resetMinute));for(const id of decision.groupIds)query.append('group',id);}
   await chrome.tabs.update(tab.id,{url:chrome.runtime.getURL(`ui/blocked.html?${query}`)});}catch{/* tab closed */}
 }
-async function claimCompanion(state,groupIds,stage){
+async function claimCompanion(state,groupIds,stage,currentUrl){
  if(!state.settings.companionEnabled)return null;
  const {companionLedger}=await chrome.storage.local.get('companionLedger');
- const result=companionReminder(state,Date.now(),companionLedger,groupIds,stage);
+ const now=Date.now(),result=companionReminder(state,now,companionLedger,groupIds,stage);
+ if(result.reminder&&stage==='browsing'&&currentUrl){
+  const day=budgetDay(now,state.settings.resetMinute);
+  let destination=null;try{destination=selectBeneficialDestination({pool:state.settings.beneficialPool,usage:state.beneficialUsage[day]??{},currentUrl,isEligible:item=>!evaluate(item.url,now,state).blocked});}catch{/* keep the reminder without a link */}
+  if(destination)result.reminder.destination={name:destination.name,url:destination.url};
+ }
  if(result.reminder&&JSON.stringify(result.ledger)!==JSON.stringify(companionLedger))await chrome.storage.local.set({companionLedger:result.ledger});
  return result.reminder;
 }
@@ -138,7 +143,7 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   const win=await chrome.windows.getLastFocused();
   const foreground=tab.active&&win.focused&&tab.windowId===win.id&&timer.running;
   return {...timer,companionEnabled:live.state.settings.companionEnabled,companionSound:live.state.settings.companionSound,
-   reminder:message.type==='heartbeat'&&foreground?await claimCompanion(live.state,browsingReminderGroups(tab.url,live.state,Date.now()),'browsing'):null};
+   reminder:message.type==='heartbeat'&&foreground?await claimCompanion(live.state,browsingReminderGroups(tab.url,live.state,Date.now()),'browsing',tab.url):null};
  }).then(data=>respond({ok:true,data}),error=>respond({ok:false,error:error.message}));return true;
 });
 chrome.tabs.onActivated.addListener(schedule);

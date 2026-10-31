@@ -417,10 +417,12 @@ test('settings footer uses the installed version in both languages',async()=>{
 });
 
 test('otter milestones run without popup, persist across navigation, and stay on blocked page',async()=>{
- const s=await settings();s.groups=[group(['127.0.0.1'],20000)];s.companionSound=false;await save(s);
+ const s=await settings();s.groups=[group(['127.0.0.1'],20000)];s.companionSound=false;s.beneficialPool={policy:'largestDeficit',items:[{id:'learn',name:'Learn',url:'http://localhost:4173/learn',enabled:true,targetMs:1800000}]};await save(s);
  const site=await context.newPage();await site.goto('http://127.0.0.1:4173/');await site.bringToFront();
  const pet=site.locator('#open-stay-focused-companion');
  await expect(pet).toContainText('Half your budget used',{timeout:16000});
+ await expect(pet.getByRole('link',{name:'Visit Learn instead'})).toBeVisible();
+ const withoutPool=await settings();withoutPool.beneficialPool.items=[];await save(withoutPool);
  await expect(pet).toHaveCount(0,{timeout:4000});
  await site.reload();
  await expect(pet).toContainText('80% used',{timeout:12000});
@@ -452,6 +454,16 @@ test('otter preview is localized, dismissible, reduced-motion aware and settings
  await page.locator('#companion-enabled').uncheck();await page.locator('#save').click();
  await expect(page.getByRole('dialog')).not.toBeVisible();
  await expect.poll(async()=> (await settings()).companionEnabled).toBe(false);
+});
+test('otter recommendation link is localized, accessible and uses the current tab',async()=>{
+ const destination={name:'A very long documentation destination that should wrap safely',url:'http://localhost:4173/learn'};
+ await page.evaluate(destination=>OpenStayCompanion.show({level:50,groupName:'Focus',language:'zh-CN',sound:false,durationMs:10000,destination}),destination);
+ let pet=page.locator('#open-stay-focused-companion'),link=pet.getByRole('link',{name:`去看看${destination.name}`});await expect(link).toBeVisible();
+ await link.focus();await expect(link).toBeFocused();expect(await link.evaluate(el=>getComputedStyle(el).overflowWrap)).toBe('anywhere');
+ await page.evaluate(()=>OpenStayCompanion.stop());
+ await page.evaluate(destination=>OpenStayCompanion.show({level:80,groupName:'Focus',language:'en',sound:false,durationMs:10000,destination}),destination);
+ pet=page.locator('#open-stay-focused-companion');link=pet.getByRole('link',{name:`Visit ${destination.name} instead`});await expect(link).toBeVisible();
+ await link.click();await expect(page).toHaveURL(destination.url);
 });
 test('otter preview plays one short synthesized sound after a user click and releases audio',async()=>{
  await page.evaluate(()=>{const Native=AudioContext;globalThis.AudioContext=class extends Native{constructor(...args){super(...args);globalThis.testOtterAudio=this;}};});
