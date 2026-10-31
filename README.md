@@ -17,6 +17,10 @@ accounts or telemetry. Free and MIT licensed.
   or telemetry. Inspect the source and export your data locally.
 - **Daily limits that fit your routine.** Give distracting websites a shared group
   budget, keep useful pages on an allowlist, and choose weekdays and active hours.
+- **Redirect attention toward something better.** Keep a local pool of beneficial
+  websites with daily minimum reading goals. When a distracting budget runs out,
+  choose a destination randomly or by its largest unmet goal; 50% and 80% otter
+  reminders can offer the same safe link. Pool edits never require a challenge.
 - **Commit to a focus session.** Start or schedule a Nuclear session. Typing
   challenges and delayed settings changes add friction when you try to relax rules.
 - **See where your time goes.** Check the live focus timer, current-site usage,

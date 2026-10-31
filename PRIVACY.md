@@ -12,6 +12,11 @@ Websites you visit retain their own ordinary network behavior.
 Chrome local extension storage contains settings (including your language choice), per-group daily usage,
 per-hostname daily/hourly statistics and session-start counts, pending settings
 changes, any scheduled/active focus session, and otter-reminder preferences.
+Beneficial-destination settings include the names and HTTP(S) URLs you enter,
+their daily minimum targets and selected redirect policy. A separate
+`beneficialUsage` ledger stores foreground milliseconds by budget day and
+destination ID. It follows the configured budget reset boundary and the same
+30-day retention window; it does not store observed paths, queries or content.
 A separate local reminder ledger stores the most recent reminder budget date,
 group IDs and the highest reminder milestone already shown for each group.
 It prevents repeated milestone sounds/reminders across tabs and restarts.
@@ -24,8 +29,9 @@ text, language choice and rules. CSV exports contain selected hostname totals an
 session counts;
 share it only if you intend to share those choices.
 
-While running, the extension reads current tab URLs to match rules and count
-foreground time. It also observes tab visibility, browser focus, idle/locked
+While running, the extension reads active-tab URLs and timing metadata to match
+restriction and beneficial-destination hostnames and count foreground time. It
+also observes tab visibility, browser focus, idle/locked
 state and whether a tab is audible; it does not record microphone or system audio. The last checkpoint URLs (including eligible audible tabs) exist only in Chrome session storage,
 which is not retained across browser restarts. Persistent statistics contain
 hostnames rather than visited paths, queries, page titles, content or chats.
@@ -63,8 +69,11 @@ Content scripts cannot access the private quota/statistics storage area.
 They can request only distraction toggles, activity heartbeats and current-page
 checks/totals from the background worker. A milestone response also contains the
 applicable group name, reminder duration and language/sound preferences so the
-reminder can be rendered in the page. Group names shown in a reminder become
-part of that page’s DOM; do not use confidential information in group names. Settings mutations require extension-owned UI pages.
+reminder can be rendered in the page. At 50% and 80%, it may also contain the
+selected beneficial destination name and URL for the visible recommendation
+link. These displayed names and URLs become part of the current page’s DOM; do
+not use confidential information in group or destination names and URLs.
+Settings mutations require extension-owned UI pages.
 
 ## Local-only use and sharing
 
